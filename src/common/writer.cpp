@@ -21,6 +21,12 @@ PacketWriter& PacketWriter::write(uint8_t* buffer, uint16_t length) {
 	return *this;
 }
 
+PacketWriter& PacketWriter::write(std::string str) {
+	write((uint8_t*) str.c_str(), str.size());
+
+	return *this;
+}
+
 Packet PacketWriter::pack() {
 	uint16_t size = data.size() - 3;
 	memcpy(data.data() + 1, &size, 2);

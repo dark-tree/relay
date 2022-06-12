@@ -2,7 +2,6 @@
 #pragma once
 
 #include "writer.hpp"
-
 #include "core.hpp"
 
 class User {
@@ -38,16 +37,21 @@ class Group {
 		}
 
 		std::shared_ptr<User> host;
-		std::vector<std::shared_ptr<User>> members;
 
 	public:
 		const uint32_t gid;
+		std::vector<std::shared_ptr<User>> members;
 
 		Group(std::shared_ptr<User> user) : host(user), gid(next ++) {
 			members.push_back(user);
 
 			user->level = 2;
 			user->gid = this->gid;
+		}
+
+		/// get host uid
+		uint32_t host_uid() {
+			return host->uid;
 		}
 
 		/// add a user to this group
@@ -68,4 +72,5 @@ class Group {
 };
 
 extern std::unordered_map<uint32_t, Group> groups;
+extern std::shared_mutex groups_mutex;
 

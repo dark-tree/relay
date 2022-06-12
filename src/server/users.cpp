@@ -2,11 +2,14 @@
 #include "users.hpp"
 
 std::unordered_map<uint32_t, Group> groups;
+std::shared_mutex groups_mutex;
 
 uint32_t User::next = 1;
 uint32_t Group::next = 1;
 
 void user_safe_exit(std::shared_ptr<User> user) {
+	std::unique_lock<std::shared_mutex> lock(groups_mutex);
+
 	if (user->level == 2) {
 		groups.at(user->gid).close();
 	}
@@ -17,13 +20,16 @@ void user_safe_exit(std::shared_ptr<User> user) {
 }
 
 void Group::join(std::shared_ptr<User> user) {
-	members.push_back(user);
+	// can't join a group without host, silenty ignore
+	if (!members.empty()) {
+		members.push_back(user);
 
-	user->level = 1;
-	user->gid = this->gid;
+		user->level = 1;
+		user->gid = this->gid;
 
-	// notify group host
-	PacketWriter(R2U_JOIN).write(user->uid).pack().send(host->sock);
+		// notify group host
+		PacketWriter(R2U_JOIN).write(user->uid).pack().send(host->sock);
+	}
 }
 
 void Group::remove(std::shared_ptr<User> user) {
@@ -47,6 +53,8 @@ void Group::close() {
 	host->level = 0;
 	host->gid = 0;
 	host.reset();
+
+	groups.erase(gid);
 }
 
 void Group::brodcast(const Packet& packet) {

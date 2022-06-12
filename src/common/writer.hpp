@@ -40,6 +40,9 @@ class PacketWriter {
 		/// add a buffer of given size into the packet
 		PacketWriter& write(uint8_t* buffer, uint16_t length);
 
+		/// add a string into the packet
+		PacketWriter& write(std::string str);
+
 		/// get the packet ready for sending
 		Packet pack();
 

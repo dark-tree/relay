@@ -1,12 +1,11 @@
 
 #pragma once
 
-#include "users.hpp"
 #include "core.hpp"
 
 class __attribute__((__packed__)) PacketHead {
 
-	private:
+	protected:
 		uint32_t read32(uint8_t* data) {
 			uint32_t val;
 			memcpy((uint8_t*) &val, data, 4);
@@ -21,8 +20,4 @@ class __attribute__((__packed__)) PacketHead {
 			// dummy implementation, deserialize with memcpy
 		}
 
-		/// process the packet body
-		void accept(uint8_t* body, std::shared_ptr<User> user);
-
 };
-

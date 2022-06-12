@@ -6,12 +6,13 @@
 #include <thread>
 #include <utility>
 #include <cassert>
+#include <shared_mutex>
 #include "asio.hpp"
 
 using asio::ip::tcp;
 
 // version of the User Relay Protocol used by this server
-#define URP_VERSION 100
+#define URP_VERSION 1
 
 #define U2R_MAKE 0x00 // create new user group
 #define U2R_JOIN 0x01 // join a user group
