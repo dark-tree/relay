@@ -4,20 +4,6 @@
 #include "users.hpp"
 #include "core.hpp"
 
-#define U2R_MAKE 0x00 // create new user group
-#define U2R_JOIN 0x01 // join a user group
-#define U2R_QUIT 0x02 // exit a user group
-#define U2R_BROD 0x03 // brodcast a message in a user group
-#define U2R_SEND 0x04 // send a message to a specific user of a user group
-
-#define R2U_WELC 0x10 // send to newly joined users
-#define R2U_TEXT 0x11 // message packet
-#define R2U_MADE 0x12 // message send to a host of a newly made user group
-#define R2U_JOIN 0x13 // message send to a host when a member joins
-#define R2U_LEFT 0x14 // message send to a host when a member leaves
-
-#define scase(val, ...) case val: { __VA_ARGS__ } break;
-
 struct __attribute__((__packed__)) packet_head_t {
 
 	private:
