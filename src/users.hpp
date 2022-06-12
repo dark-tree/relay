@@ -11,7 +11,7 @@ class User {
 		static uint32_t next;
 
 	public:
-		/* const */ tcp::socket sock;
+		tcp::socket sock;
 		const uint32_t uid;
 
 		uint8_t level;
@@ -37,11 +37,11 @@ class Group {
 			});
 		}
 
-	public:
-		const uint32_t gid;
-
 		std::shared_ptr<User> host;
 		std::vector<std::shared_ptr<User>> members;
+
+	public:
+		const uint32_t gid;
 
 		Group(std::shared_ptr<User> user) : host(user), gid(next ++) {
 			members.push_back(user);
@@ -50,48 +50,20 @@ class Group {
 			user->gid = this->gid;
 		}
 
-		void join(std::shared_ptr<User> user) {
-			members.push_back(user);
+		/// add a user to this group
+		void join(std::shared_ptr<User> user);
 
-			user->level = 1;
-			user->gid = this->gid;
+		/// remove a user from this group
+		void remove(std::shared_ptr<User> user);
 
-			// notify group host
-			PacketWriter(R2U_JOIN).write(user->uid).pack().send(host->sock);
-		}
+		/// close this group (called when host leaves)
+		void close();
 
-		void remove(std::shared_ptr<User> user) {
-			members.erase(std::ranges::find(members.begin(), members.end(), user));
+		/// brodcast a message to all members
+		void brodcast(const Packet& packet);
 
-			user->level = 0;
-			user->gid = 0;
-
-			// notify group host
-			PacketWriter(R2U_LEFT).write(user->uid).pack().send(host->sock);
-		}
-
-		void close() {
-			for(auto& user : members) {
-				user->level = 0;
-				user->gid = 0;
-			}
-
-			members.clear();
-
-			host->level = 0;
-			host->gid = 0;
-			host.reset();
-		}
-
-		void brodcast(const Packet& packet) {
-			for(auto& user : members) {
-				packet.send(user->sock);
-			}
-		}
-
-		void send(uint32_t uid, const Packet& packet) {
-			packet.send(get_user(uid)->sock);
-		}
+		/// send a message to a member with given uid
+		void send(uint32_t uid, const Packet& packet);
 
 };
 

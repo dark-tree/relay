@@ -8,12 +8,9 @@ void session(std::shared_ptr<User> user) {
 
 	try{
 		while (true) {
-
 			// load packet header
-			packet_head_t head;
-			asio::read(user->sock, asio::buffer((uint8_t*) &head, sizeof(packet_head_t)));
-
-			std::cout << "INFO: Recived head (waiting for " << head.size << " bytes)!\n";
+			PacketHead head;
+			asio::read(user->sock, asio::buffer((uint8_t*) &head, sizeof(PacketHead)));
 
 			// load packet body
 			uint8_t body[head.size];
@@ -21,8 +18,6 @@ void session(std::shared_ptr<User> user) {
 
 			// execute command
 			head.accept(body, user);
-
-			std::cout << "INFO: Recived body!\n";
 		}
 	} catch(...) {}
 
@@ -32,7 +27,7 @@ void session(std::shared_ptr<User> user) {
 
 int main(int argc, char* argv[]) {
 
-	assert (sizeof(packet_head_t) == 3);
+	assert (sizeof(PacketHead) == 3);
 
 	// asynchonusly watch for user input
 	std::thread input_thread([&] () -> void {
