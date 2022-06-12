@@ -1,2 +1,2 @@
 # Linguist overrides
-libs/** linguist-vendored
+lib/** linguist-vendored
