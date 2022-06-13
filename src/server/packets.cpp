@@ -27,7 +27,7 @@ void ServerPacketHead::accept(uint8_t* body, std::shared_ptr<User> user) {
 			}
 		});
 
-		// user wants to reset it's state
+		// user wants to reset its state
 		scase(U2R_QUIT, {
 			if (user->level != 0) {
 				user_safe_exit(user);
