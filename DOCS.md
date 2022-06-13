@@ -1,14 +1,14 @@
 # User Relay Protocol
 Version 1
 
-URP is a communication protocol working on top of TCP/IP that allows for an emulation of a pear-to-pear like network. Users connected to a User Relay can group themselves into "User Groups" that can then exchange binary messages with a size of up to 65 kB (65532 bytes).
+URP is a communication protocol working on top of TCP/IP that allows for an emulation of a pear-to-pear like network. Users connected to a User Relay can group themselves into "User Groups" that can then exchange binary messages with a size of up to 65 kB (65531 bytes).
 
 ### Packet Structure
 Every command send to or from a relay starts with a 3 byte long header, consisting of two fields
 - type, 1 unsigned 8 bit integer (1 byte) representing the packet type
 - size, 1 unsigned 16 bit integer (2 bytes) representing the size of the packet body in bytes
 
-And a packet body whose length is defined by the head, the exact meaning of the data in this section packet type dependent.
+And a packet body whose length is defined by the head, the exact meaning of the data in this section is packet type dependent.
 
 ### Packet Types
 Depending on the packet type defined in the header the packet and it's body should be interpreted according to this table:
@@ -32,7 +32,7 @@ Depending on the packet type defined in the header the packet and it's body shou
 - "N/A" in the "Structure" column indicates that this packet has no arguments (size should be equal to 0).
 
 ### Users
-A relay user can be in one of 3 states:  
+A relay user can be in one of 3 states:
 
 | Name | Code | Description | Allowed Commands |
 | - | - | - | - |
