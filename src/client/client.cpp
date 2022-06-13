@@ -6,27 +6,37 @@
 
 int main() {
 
-	std::cout << "INFO: Connecting..." << std::endl;
+	logger::info("Connecting...");
 
 	asio::io_context context;
 	tcp::socket socket(context);
 	tcp::resolver resolver(context);
 	auto endpoints = resolver.resolve("localhost", "9698");
 
-	asio::connect(socket, endpoints);
+	try{
+		asio::connect(socket, endpoints);
+	} catch(...) {
+		logger::fatal("Failed to bind to port!");
+		exit(1);
+	}
 
 	std::thread socket_thread([&] () -> void {
-		while (true) {
-			// load packet header
-			ClientPacketHead head;
-			asio::read(socket, asio::buffer((uint8_t*) &head, sizeof(ClientPacketHead)));
+		try{
+			while (true) {
+				// load packet header
+				ClientPacketHead head;
+				asio::read(socket, asio::buffer((uint8_t*) &head, sizeof(ClientPacketHead)));
 
-			// load packet body
-			uint8_t body[head.size];
-			asio::read(socket, asio::buffer(body, head.size));
+				// load packet body
+				uint8_t body[head.size];
+				asio::read(socket, asio::buffer(body, head.size));
 
-			// execute command
-			head.accept(body);
+				// execute command
+				head.accept(body);
+			}
+		} catch(...) {
+			logger::fatal("Connection closed by relay!");
+			exit(2);
 		}
 	});
 
@@ -39,7 +49,7 @@ int main() {
 			std::cout << "make             - create a user group" << std::endl;
 			std::cout << "join [gid]       - join a user group" << std::endl;
 			std::cout << "exit             - exit a user group" << std::endl;
-			std::cout << "brod [msg]       - brodcast a message to all group users" << std::endl;
+			std::cout << "brodcast [msg]   - brodcast a message to all group users" << std::endl;
 			std::cout << "send [uid] [msg] - send a message to a specific group user" << std::endl;
 		});
 
@@ -56,7 +66,7 @@ int main() {
 			PacketWriter(U2R_QUIT).pack().send(socket);
 		});
 
-		match_command(parts, "brod", 2, [&socket] (auto& parts) {
+		match_command(parts, "brodcast", 2, [&socket] (auto& parts) {
 			PacketWriter(U2R_BROD).write(parts[1]).pack().send(socket);
 		});
 

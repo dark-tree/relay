@@ -10,7 +10,7 @@ void ServerPacketHead::accept(uint8_t* body, std::shared_ptr<User> user) {
 				std::unique_lock<std::shared_mutex> lock(groups_mutex);
 
 				Group group(user);
-				std::cout << "INFO: User #" << user->uid << " created group #" << group.gid << "\n";
+				logger::info("User #", user->uid, " created group #", group.gid);
 				PacketWriter(R2U_MADE).write(group.gid).pack().send(user->sock);
 				groups.emplace(group.gid, std::move(group));
 			}
@@ -24,8 +24,6 @@ void ServerPacketHead::accept(uint8_t* body, std::shared_ptr<User> user) {
 				std::unique_lock<std::shared_mutex> lock(groups_mutex);
 				Group& group = groups.at(gid);
 				group.join(user);
-
-				std::cout << "INFO: User #" << user->uid << " joined group #" << group.gid << "\n";
 			}
 		});
 

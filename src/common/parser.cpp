@@ -23,7 +23,7 @@ void tokenize_and_invoke(std::string input, InputProcessor processor) {
 
 	if (!tmp.empty()) {
 		if (str) {
-			std::cout << "WARN: Expected closing quote (\") but found end of line!" << std::endl;
+			logger::warn("Expected closing quote (\") but found end of line!");
 		}
 
 		parts.push_back(tmp);
@@ -32,7 +32,7 @@ void tokenize_and_invoke(std::string input, InputProcessor processor) {
 	try {
 		processor(parts);
 	} catch(std::invalid_argument error) {
-		std::cout << "ERROR: " << error.what() << " or invalid syntax, use 'help' to learn more" << std::endl;
+		logger::error(error.what(), " or invalid syntax, use 'help' to learn more");
 	} catch(int val) {
 		// flow control
 	}

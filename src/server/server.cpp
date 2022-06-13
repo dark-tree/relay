@@ -6,7 +6,7 @@ std::mutex users_mutex;
 std::vector<std::shared_ptr<User>> users;
 
 void session(std::shared_ptr<User> user) {
-	std::cout << "INFO: User #" << user->uid << " connected\n";
+	logger::info("User #", user->uid, " connected");
 
 	users_mutex.lock();
 	users.push_back(user);
@@ -34,7 +34,7 @@ void session(std::shared_ptr<User> user) {
 	users_mutex.unlock();
 
 	user_safe_exit(user);
-	std::cout << "INFO: User #" << user->uid << " disconnected\n";
+	logger::info("User #", user->uid, " disconnected");
 }
 
 int main(int argc, char* argv[]) {
@@ -93,7 +93,7 @@ int main(int argc, char* argv[]) {
 	asio::io_context context;
 	tcp::acceptor acceptor(context, tcp::endpoint(tcp::v4(), 9698));
 
-	std::cout << "INFO: Listening on port 9698...\n";
+	logger::info("Listening on port 9698...");
 
 	// accept new sessions
 	while (true) {

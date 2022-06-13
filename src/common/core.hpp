@@ -9,6 +9,8 @@
 #include <shared_mutex>
 #include "asio.hpp"
 
+#include "logger.hpp"
+
 using asio::ip::tcp;
 
 // version of the User Relay Protocol used by this server

@@ -22,6 +22,8 @@ void user_safe_exit(std::shared_ptr<User> user) {
 void Group::join(std::shared_ptr<User> user) {
 	// can't join a group without host, silenty ignore
 	if (!members.empty()) {
+		logger::info("User #", user->uid, " joined group #", gid);
+
 		members.push_back(user);
 
 		user->level = 1;
@@ -33,6 +35,7 @@ void Group::join(std::shared_ptr<User> user) {
 }
 
 void Group::remove(std::shared_ptr<User> user) {
+	logger::info("User #", user->uid, " left group #", gid);
 	members.erase(std::ranges::find(members.begin(), members.end(), user));
 
 	user->level = 0;
@@ -43,6 +46,8 @@ void Group::remove(std::shared_ptr<User> user) {
 }
 
 void Group::close() {
+	logger::info("Group #", gid, " closed by host");
+
 	for(auto& user : members) {
 		user->level = 0;
 		user->gid = 0;
