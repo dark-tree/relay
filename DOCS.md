@@ -11,7 +11,7 @@ Every command send to or from a relay starts with a 3 byte long header, consisti
 And a packet body whose length is defined by the head, the exact meaning of the data in this section is packet type dependent.
 
 ### Packet Types
-Depending on the packet type defined in the header the packet and it's body should be interpreted according to this table:
+Depending on the packet type defined in the header the packet and its body should be interpreted according to this table:
 
 | Name | Type | Structure | Description |
 | - | - | - | - |

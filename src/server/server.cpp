@@ -27,7 +27,7 @@ void session(std::shared_ptr<User> user) {
 			// execute command
 			head.accept(body, user);
 		}
-	} catch(...) {}
+	} catch(...) { }
 
 	users_mutex.lock();
 	users.erase(std::ranges::find(users.begin(), users.end(), user));

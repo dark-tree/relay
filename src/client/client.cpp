@@ -49,7 +49,7 @@ int main() {
 			std::cout << "make             - create a user group" << std::endl;
 			std::cout << "join [gid]       - join a user group" << std::endl;
 			std::cout << "exit             - exit a user group" << std::endl;
-			std::cout << "brodcast [msg]   - brodcast a message to all group users" << std::endl;
+			std::cout << "broadcast [msg]  - brodcast a message to all group users" << std::endl;
 			std::cout << "send [uid] [msg] - send a message to a specific group user" << std::endl;
 		});
 
@@ -66,7 +66,7 @@ int main() {
 			PacketWriter(U2R_QUIT).pack().send(socket);
 		});
 
-		match_command(parts, "brodcast", 2, [&socket] (auto& parts) {
+		match_command(parts, "broadcast", 2, [&socket] (auto& parts) {
 			PacketWriter(U2R_BROD).write(parts[1]).pack().send(socket);
 		});
 
