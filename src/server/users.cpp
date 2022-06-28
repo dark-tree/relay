@@ -62,9 +62,11 @@ void Group::close() {
 	groups.erase(gid);
 }
 
-void Group::brodcast(const Packet& packet) {
+void Group::brodcast(const Packet& packet, uint32_t uid) {
 	for(auto& user : members) {
-		packet.send(user->sock);
+		if (user->uid != uid) {
+			packet.send(user->sock);
+		}
 	}
 }
 

@@ -38,7 +38,7 @@ void ServerPacketHead::accept(uint8_t* body, std::shared_ptr<User> user) {
 		scase(U2R_BROD, {
 			if (user->level != 0) {
 				std::shared_lock<std::shared_mutex> lock(groups_mutex);
-				groups.at(user->gid).brodcast(PacketWriter(R2U_TEXT).write(body, size).pack());
+				groups.at(user->gid).brodcast(PacketWriter(R2U_TEXT).write(body, size).pack(), user->gid);
 			}
 		});
 

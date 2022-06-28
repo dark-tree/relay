@@ -5,6 +5,12 @@
 std::mutex users_mutex;
 std::vector<std::shared_ptr<User>> users;
 
+const char* levels[] = {
+	"noone",
+	"member",
+	"host"
+};
+
 void session(std::shared_ptr<User> user) {
 	logger::info("User #", user->uid, " connected");
 
@@ -57,7 +63,7 @@ int main(int argc, char* argv[]) {
 			match_command(parts, "users", 1, [&] (auto& parts) {
 				std::cout << "There are: " << users.size() << " users connected\n";
 				for (auto& user : users) {
-					std::cout << " - user #" << user->uid << " (" << (int) user->level << ")" << std::endl;
+					std::cout << " - user #" << user->uid << " (" << levels[user->level] << ")" << std::endl;
 				}
 			});
 

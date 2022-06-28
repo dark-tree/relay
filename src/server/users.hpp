@@ -63,8 +63,8 @@ class Group {
 		/// close this group (called when host leaves)
 		void close();
 
-		/// brodcast a message to all members
-		void brodcast(const Packet& packet);
+		/// brodcast a message to all members, except for the given uid
+		void brodcast(const Packet& packet, uint32_t uid);
 
 		/// send a message to a member with given uid
 		void send(uint32_t uid, const Packet& packet);
