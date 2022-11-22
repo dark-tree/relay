@@ -1,6 +1,22 @@
 
 #include "packets.hpp"
 
+bool binary = false;
+
+std::string buffer_to_string(char* data, int size) {
+	if (binary) {
+		std::stringstream ss;
+
+		for (int i = 0; i < size; i ++) {
+			ss << std::hex << (int) data[i] << " ";
+		}
+
+		return ss.str();
+	}
+
+	return std::string(data, size);
+}
+
 void ClientPacketHead::accept(uint8_t* body) {
 	switch (type) {
 
@@ -11,7 +27,7 @@ void ClientPacketHead::accept(uint8_t* body) {
 
 		// recived massage from other user in the group
 		scase(R2U_TEXT, {
-			logger::info("Recived message: ", std::string((char*) body, size));
+			logger::info("Recived message: ", buffer_to_string((char*) body, size));
 		});
 
 		// group creation confirmation

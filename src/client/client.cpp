@@ -44,6 +44,7 @@ int main() {
 
 		match_command(parts, "help", 1, [] (auto& parts) {
 			std::cout << "List of avaible commands:" << std::endl;
+			std::cout << "bin              - toggle binary print mode" << std::endl;
 			std::cout << "help             - print this help page" << std::endl;
 			std::cout << "quit             - stop this application" << std::endl;
 			std::cout << "make             - create a user group" << std::endl;
@@ -51,6 +52,10 @@ int main() {
 			std::cout << "exit             - exit a user group" << std::endl;
 			std::cout << "broadcast [msg]  - brodcast a message to all group users" << std::endl;
 			std::cout << "send [uid] [msg] - send a message to a specific group user" << std::endl;
+		});
+
+		match_command(parts, "bin", 1, [] (auto& parts) {
+			binary = !binary;
 		});
 
 		match_command(parts, "make", 1, [&socket] (auto& parts) {
