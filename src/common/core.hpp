@@ -28,6 +28,12 @@ using asio::ip::tcp;
 #define R2U_JOIN 0x13 // user joined group
 #define R2U_LEFT 0x14 // user left group
 
+#define LEVEL_NO_ONE 0
+#define LEVEL_MEMBER 1
+#define LEVEL_HOST 2
+#define NULL_GROUP 0
+#define NULL_USER 0
+
 // helper macro
 #define scase(val, ...) case val: { __VA_ARGS__ } break;
 

@@ -6,7 +6,7 @@ std::mutex users_mutex;
 std::vector<std::shared_ptr<User>> users;
 
 const char* levels[] = {
-	"noone",
+	"no_one",
 	"member",
 	"host"
 };

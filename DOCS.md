@@ -18,7 +18,7 @@ Depending on the packet type defined in the header the packet and its body shoul
 | `U2R_MAKE` | 0x00 | N/A | Create new user group |
 | `U2R_JOIN` | 0x01 | uint32: gid | Join a user group of given ID |
 | `U2R_QUIT` | 0x02 | N/A | Leave the current user group |
-| `U2R_BROD` | 0x03 | bytes: msg | Broadcast a message to all members of a group, except for the sender |
+| `U2R_BROD` | 0x03 | bytes: msg | Broadcast a message to all members of a group, including the sender |
 | `U2R_SEND` | 0x04 | uint32: uid, bytes: msg | Send a message to a user with given ID |
 | `R2U_WELC` | 0x10 | uint32: uid, uint32: ver | Send to newly connected users |
 | `R2U_TEXT` | 0x11 | bytes: msg | Transmits the incoming message |
@@ -36,9 +36,9 @@ A relay user can be in one of 3 states:
 
 | Name | Code | Description | Allowed Commands |
 | - | - | - | - |
-| NOONE | 0 | When not in any group | `U2R_MAKE` `U2R_JOIN` |
-| MEMBER | 1 | When in a group | `U2R_QUIT` `U2R_BROD` `U2R_SEND` |
-| HOST | 2 | When hosting a group | `U2R_QUIT` `U2R_BROD` `U2R_SEND` |
+| `NO_ONE` | 0 | When not in any group | `U2R_MAKE` `U2R_JOIN` |
+| `MEMBER` | 1 | When in a group | `U2R_QUIT` `U2R_BROD` `U2R_SEND` |
+| `HOST` | 2 | When hosting a group | `U2R_QUIT` `U2R_BROD` `U2R_SEND` |
 
 ### Groups
 A user group is a collection of users created using the `U2R_MAKE` packet by the group host,

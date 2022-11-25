@@ -17,8 +17,8 @@ class User {
 		uint32_t gid;
 
 		User(tcp::socket sock) : sock(std::move(sock)), uid(next ++) {
-			this->level = 0;
-			this->gid = 0;
+			this->level = LEVEL_NO_ONE;
+			this->gid = NULL_GROUP;
 		}
 
 };
@@ -45,7 +45,7 @@ class Group {
 		Group(std::shared_ptr<User> user) : host(user), gid(next ++) {
 			members.push_back(user);
 
-			user->level = 2;
+			user->level = LEVEL_HOST;
 			user->gid = this->gid;
 		}
 

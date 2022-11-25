@@ -10,11 +10,11 @@ uint32_t Group::next = 1;
 void user_safe_exit(std::shared_ptr<User> user) {
 	std::unique_lock<std::shared_mutex> lock(groups_mutex);
 
-	if (user->level == 2) {
+	if (user->level == LEVEL_HOST) {
 		groups.at(user->gid).close();
 	}
 
-	if (user->level == 1) {
+	if (user->level == LEVEL_MEMBER) {
 		groups.at(user->gid).remove(user);
 	}
 }
@@ -26,7 +26,7 @@ void Group::join(std::shared_ptr<User> user) {
 
 		members.push_back(user);
 
-		user->level = 1;
+		user->level = LEVEL_MEMBER;
 		user->gid = this->gid;
 
 		// notify group host
@@ -38,8 +38,8 @@ void Group::remove(std::shared_ptr<User> user) {
 	logger::info("User #", user->uid, " left group #", gid);
 	members.erase(std::ranges::find(members.begin(), members.end(), user));
 
-	user->level = 0;
-	user->gid = 0;
+	user->level = LEVEL_NO_ONE;
+	user->gid = NULL_GROUP;
 
 	// notify group host
 	PacketWriter(R2U_LEFT).write(user->uid).pack().send(host->sock);
@@ -49,14 +49,14 @@ void Group::close() {
 	logger::info("Group #", gid, " closed by host");
 
 	for(auto& user : members) {
-		user->level = 0;
-		user->gid = 0;
+		user->level = LEVEL_NO_ONE;
+		user->gid = NULL_GROUP;
 	}
 
 	members.clear();
 
-	host->level = 0;
-	host->gid = 0;
+	host->level = LEVEL_NO_ONE;
+	host->gid = NULL_GROUP;
 	host.reset();
 
 	groups.erase(gid);

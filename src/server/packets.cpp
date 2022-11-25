@@ -6,7 +6,7 @@ void ServerPacketHead::accept(uint8_t* body, std::shared_ptr<User> user) {
 
 		// user requested new group to be created
 		scase(U2R_MAKE, {
-			if (user->level == 0) {
+			if (user->level == LEVEL_NO_ONE) {
 				std::unique_lock<std::shared_mutex> lock(groups_mutex);
 
 				Group group(user);
@@ -18,7 +18,7 @@ void ServerPacketHead::accept(uint8_t* body, std::shared_ptr<User> user) {
 
 		// user wants to join a given group
 		scase(U2R_JOIN, {
-			if (user->level == 0) {
+			if (user->level == LEVEL_NO_ONE) {
 				uint32_t gid = read32(body);
 
 				std::unique_lock<std::shared_mutex> lock(groups_mutex);
@@ -29,22 +29,22 @@ void ServerPacketHead::accept(uint8_t* body, std::shared_ptr<User> user) {
 
 		// user wants to reset its state
 		scase(U2R_QUIT, {
-			if (user->level != 0) {
+			if (user->level != LEVEL_NO_ONE) {
 				user_safe_exit(user);
 			}
 		});
 
 		// users wants to brodcast a message within a group
 		scase(U2R_BROD, {
-			if (user->level != 0) {
+			if (user->level != LEVEL_NO_ONE) {
 				std::shared_lock<std::shared_mutex> lock(groups_mutex);
-				groups.at(user->gid).brodcast(PacketWriter(R2U_TEXT).write(body, size).pack(), user->gid);
+				groups.at(user->gid).brodcast(PacketWriter(R2U_TEXT).write(body, size).pack(), NULL_USER);
 			}
 		});
 
 		// users wants to send a message to a specific user within a group
 		scase(U2R_SEND, {
-			if (user->level != 0) {
+			if (user->level != LEVEL_NO_ONE) {
 				uint32_t uid = read32(body);
 				std::shared_lock<std::shared_mutex> lock(groups_mutex);
 				groups.at(user->gid).send(uid, PacketWriter(R2U_TEXT).write(body + 4, size - 4).pack());
