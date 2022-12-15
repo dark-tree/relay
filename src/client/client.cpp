@@ -72,7 +72,7 @@ int main() {
 		});
 
 		match_command(parts, "broadcast", 2, [&socket] (auto& parts) {
-			PacketWriter(U2R_BROD).write(parts[1]).pack().send(socket);
+			PacketWriter(U2R_BROD).write(NULL_USER).write(parts[1]).pack().send(socket);
 		});
 
 		match_command(parts, "send", 3, [&socket] (auto& parts) {

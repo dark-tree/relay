@@ -37,8 +37,10 @@ void ServerPacketHead::accept(uint8_t* body, std::shared_ptr<User> user) {
 		// users wants to brodcast a message within a group
 		scase(U2R_BROD, {
 			if (user->level != LEVEL_NO_ONE) {
+				uint32_t uid = read32(body);
+
 				std::shared_lock<std::shared_mutex> lock(groups_mutex);
-				groups.at(user->gid).brodcast(PacketWriter(R2U_TEXT).write(body, size).pack(), NULL_USER);
+				groups.at(user->gid).brodcast(PacketWriter(R2U_TEXT).write(body + 4, size - 4).pack(), uid);
 			}
 		});
 
@@ -46,6 +48,7 @@ void ServerPacketHead::accept(uint8_t* body, std::shared_ptr<User> user) {
 		scase(U2R_SEND, {
 			if (user->level != LEVEL_NO_ONE) {
 				uint32_t uid = read32(body);
+
 				std::shared_lock<std::shared_mutex> lock(groups_mutex);
 				groups.at(user->gid).send(uid, PacketWriter(R2U_TEXT).write(body + 4, size - 4).pack());
 			}

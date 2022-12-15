@@ -27,7 +27,7 @@ void ClientPacketHead::accept(uint8_t* body) {
 
 		// recived massage from other user in the group
 		scase(R2U_TEXT, {
-			logger::info("Recived message: ", buffer_to_string((char*) body, size));
+			logger::info("Received message: ", buffer_to_string((char*) body, size));
 		});
 
 		// group creation confirmation

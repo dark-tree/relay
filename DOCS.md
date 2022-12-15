@@ -18,7 +18,7 @@ Depending on the packet type defined in the header the packet and its body shoul
 | `U2R_MAKE` | 0x00 | N/A | Create new user group |
 | `U2R_JOIN` | 0x01 | uint32: gid | Join a user group of given ID |
 | `U2R_QUIT` | 0x02 | N/A | Leave the current user group |
-| `U2R_BROD` | 0x03 | bytes: msg | Broadcast a message to all members of a group, including the sender |
+| `U2R_BROD` | 0x03 | uint32: uid, bytes: msg | Broadcast a message to all members of a group, except for the one with the given ID |
 | `U2R_SEND` | 0x04 | uint32: uid, bytes: msg | Send a message to a user with given ID |
 | `R2U_WELC` | 0x10 | uint32: uid, uint32: ver | Send to newly connected users |
 | `R2U_TEXT` | 0x11 | bytes: msg | Transmits the incoming message |
@@ -30,6 +30,7 @@ Depending on the packet type defined in the header the packet and its body shoul
 - Packets starting with `U2R` are send by the user to relay, and packets starting with `R2U` are send by relay to the user.
 - The two fields of the `R2U_WELC` packet are guarantied to stay the same for all future URP versions.
 - "N/A" in the "Structure" column indicates that this packet has no arguments (size should be equal to 0).
+- The `uid` parameter of the `U2R_BROD` command can be set to `0` to send to all users
 
 ### Users
 A relay user can be in one of 3 states:
