@@ -26,7 +26,8 @@ using asio::ip::tcp;
 #define R2U_TEXT 0x11 // message received
 #define R2U_MADE 0x12 // new user group made
 #define R2U_JOIN 0x13 // user joined group
-#define R2U_LEFT 0x14 // user left group
+#define R2U_LEFT 0x14 // user left group (to host)
+#define R2U_EXIT 0x15 // user left group (to user)
 
 #define LEVEL_NO_ONE 0
 #define LEVEL_MEMBER 1

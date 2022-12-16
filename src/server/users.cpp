@@ -41,8 +41,9 @@ void Group::remove(std::shared_ptr<User> user) {
 	user->level = LEVEL_NO_ONE;
 	user->gid = NULL_GROUP;
 
-	// notify group host
+	// notify group host and the user
 	PacketWriter(R2U_LEFT).write(user->uid).pack().send(host->sock);
+	PacketWriter(R2U_EXIT).pack().send(user->sock);
 }
 
 void Group::close() {
@@ -51,6 +52,7 @@ void Group::close() {
 	for(auto& user : members) {
 		user->level = LEVEL_NO_ONE;
 		user->gid = NULL_GROUP;
+		PacketWriter(R2U_EXIT).pack().send(user->sock);
 	}
 
 	members.clear();
