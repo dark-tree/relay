@@ -24,6 +24,7 @@ void ServerPacketHead::accept(uint8_t* body, std::shared_ptr<User> user) {
 				std::unique_lock<std::shared_mutex> lock(groups_mutex);
 				Group& group = groups.at(gid);
 				group.join(user);
+				PacketWriter(R2U_MADE).write(group.gid).pack().send(user->sock);
 			}
 		});
 

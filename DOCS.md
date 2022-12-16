@@ -22,7 +22,7 @@ Depending on the packet type defined in the header the packet and its body shoul
 | `U2R_SEND` | 0x04 | uint32: uid, bytes: msg | Send a message to a user with given ID |
 | `R2U_WELC` | 0x10 | uint32: uid, uint32: ver | Send to newly connected users |
 | `R2U_TEXT` | 0x11 | bytes: msg | Transmits the incoming message |
-| `R2U_MADE` | 0x12 | uint32: gid | Notifies the host of group creation |
+| `R2U_MADE` | 0x12 | uint32: gid | Notifies the host or used of creating/joining a group |
 | `R2U_JOIN` | 0x13 | uint32: uid | Notifies the host that a user has joined the group |
 | `R2U_LEFT` | 0x14 | uint32: uid | Notifies the host that a user has left the group |
 
