@@ -35,7 +35,13 @@ class PacketWriter {
 		}
 
 		/// add a single 32bit unsigned integer into the packet
-		PacketWriter& write(uint32_t value);
+		PacketWriter& write32(uint32_t value);
+
+		/// add a single 16bit unsigned integer into the packet
+		PacketWriter& write16(uint16_t value);
+
+		/// add a single 8bit unsigned integer into the packet
+		PacketWriter& write8(uint8_t value);
 
 		/// add a buffer of given size into the packet
 		PacketWriter& write(uint8_t* buffer, uint16_t length);

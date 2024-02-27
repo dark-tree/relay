@@ -17,6 +17,13 @@ std::string buffer_to_string(char* data, int size) {
 	return std::string(data, size);
 }
 
+const char* get_key_string(uint32_t key) {
+	if (key == DATA_KEY_PASS) return "group.password";
+	if (key == DATA_KEY_FLAG) return "group.flags";
+
+	return "undefined";
+}
+
 void ClientPacketHead::accept(uint8_t* body) {
 	switch (type) {
 
@@ -32,7 +39,30 @@ void ClientPacketHead::accept(uint8_t* body) {
 
 		// group creation confirmation
 		scase(R2U_MADE, {
-			logger::info("New group created (gid: ", read32(body), ")");
+			uint32_t gid = read32(body);
+			uint8_t status = read8(body + 4);
+
+			switch (status) {
+				scase(MADE_STATUS_MADE, {
+					logger::info("New group created (gid: ", gid, ")");
+				});
+
+				scase(MADE_STATUS_JOIN, {
+					logger::info("New group joined (gid: ", gid, ")");
+				});
+
+				scase(MADE_STATUS_PASS, {
+					logger::info("Failed to join, invalid password");
+				});
+
+				scase(MADE_STATUS_LOCK, {
+					logger::info("Failed to join, group closed");
+				});
+
+				scase(MADE_STATUS_FAIL, {
+					logger::info("Failed to join, relay error");
+				});
+			}
 		});
 
 		// user join notification
@@ -43,6 +73,11 @@ void ClientPacketHead::accept(uint8_t* body) {
 		// user left notification
 		scase(R2U_LEFT, {
 			logger::info("User left current group (uid: ", read32(body), ")");
+		});
+
+		// data update
+		scase(R2U_VALS, {
+			logger::info("Value of: ", get_key_string(read32(body)), " is now: ", read32(body + 4));
 		});
 
 	}

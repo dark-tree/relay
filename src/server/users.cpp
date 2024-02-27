@@ -1,11 +1,11 @@
 
 #include "users.hpp"
 
-std::unordered_map<uint32_t, Group> groups;
+std::unordered_map<uint32_t, Group, ByteHash> groups;
 std::shared_mutex groups_mutex;
 
-uint32_t User::next = 1;
-uint32_t Group::next = 1;
+Random User::generator {};
+Random Group::generator {};
 
 void user_safe_exit(std::shared_ptr<User> user) {
 	std::unique_lock<std::shared_mutex> lock(groups_mutex);
@@ -19,19 +19,31 @@ void user_safe_exit(std::shared_ptr<User> user) {
 	}
 }
 
-void Group::join(std::shared_ptr<User> user) {
-	// can't join a group without host, silenty ignore
-	if (!members.empty()) {
-		logger::info("User #", user->uid, " joined group #", gid);
-
-		members.push_back(user);
-
-		user->level = LEVEL_MEMBER;
-		user->gid = this->gid;
-
-		// notify group host
-		PacketWriter(R2U_JOIN).write(user->uid).pack().send(host->sock);
+uint8_t Group::join(std::shared_ptr<User> user, uint32_t password) {
+	if (this->password != password) {
+		logger::info("User #", user->uid, " attempted to join group #", gid, ", but provided invalid password");
+		return MADE_STATUS_PASS;
 	}
+
+	if (this->flags & GROUP_FLAG_LOCK) {
+		logger::info("User #", user->uid, " attempted to join group #", gid, ", but the group is locked");
+		return MADE_STATUS_LOCK;
+	}
+
+	if (members.empty()) {
+		logger::warn("User #", user->uid, " attempted to join group #", gid, ", but there was no host");
+		return MADE_STATUS_FAIL;
+	}
+
+	logger::info("User #", user->uid, " joined group #", gid);
+	members.push_back(user);
+
+	user->level = LEVEL_MEMBER;
+	user->gid = this->gid;
+
+	// notify group host
+	PacketWriter(R2U_JOIN).write32(user->uid).pack().send(host->sock);
+	return MADE_STATUS_JOIN;
 }
 
 void Group::remove(std::shared_ptr<User> user) {
@@ -42,7 +54,7 @@ void Group::remove(std::shared_ptr<User> user) {
 	user->gid = NULL_GROUP;
 
 	// notify group host and the user
-	PacketWriter(R2U_LEFT).write(user->uid).pack().send(host->sock);
+	PacketWriter(R2U_LEFT).write32(user->uid).pack().send(host->sock);
 	PacketWriter(R2U_EXIT).pack().send(user->sock);
 }
 
