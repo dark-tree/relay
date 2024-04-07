@@ -1,13 +1,6 @@
 
 #pragma once
-
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdbool.h>
-#include <stdint.h>
-#include <string.h>
-
-#include "common/logger.h"
+#include "external.h"
 
 #define streq(a, b) (strcmp(a, b) == 0)
 
@@ -19,7 +12,7 @@ typedef struct {
 
 /// Creates new empty line struct.
 /// This function should typically be used once
-/// before calling any other input function. 
+/// before calling any other input function.
 /// Use input_free() to dealocate a line struct after use.
 void input_create(InputLine* line);
 

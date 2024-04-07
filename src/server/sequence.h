@@ -1,8 +1,6 @@
 
 #pragma once
-
-#include <stdint.h>
-#include <stdlib.h>
+#include "external.h"
 
 typedef enum {
 	IDSEQ_RANDOMIZED,

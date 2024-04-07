@@ -1,10 +1,6 @@
 
 #pragma once
-
-#include <stdio.h>
-#include <stdint.h>
-#include <stdbool.h>
-#include <time.h>
+#include "external.h"
 
 /// print timestamp and log level
 void log_header(const char* type);

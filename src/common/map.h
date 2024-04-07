@@ -1,10 +1,6 @@
 
 #pragma once
-
-#include <stdlib.h>
-#include <stdint.h>
-#include <stdbool.h>
-#include <stdio.h>
+#include "external.h"
 
 #define IDMAP_MASK 0x0FFF
 #define IDMAP_BUCKETS (IDMAP_MASK + 1)

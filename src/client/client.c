@@ -1,12 +1,10 @@
 
-#include <netdb.h>
-#include <sys/socket.h>
-#include <sys/types.h>
-#include <pthread.h>
+#include "external.h"
 
-#include "common/const.h"
-#include "common/stream.h"
-#include "common/input.h"
+#include <common/const.h>
+#include <common/stream.h>
+#include <common/input.h>
+#include <common/logger.h>
 
 // TODO move somewhere else
 const char* made_codestr(uint8_t code) {

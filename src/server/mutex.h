@@ -1,7 +1,6 @@
 
 #pragma once
-
-#include <semaphore.h>
+#include "external.h"
 
 typedef struct {
 	sem_t shared;
@@ -41,21 +40,20 @@ void mutex_unique_unlock(SharedMutex* mutex);
 	{ \
 		__VA_ARGS__ \
 	} \
-	mutex_shared_unlock(mutex); \
-	
+	mutex_shared_unlock(mutex);
+
 /// unique lock macro helper
 #define UNIQUE_LOCK(mutex, ...) \
 	mutex_unique_lock(mutex); \
 	{ \
 		__VA_ARGS__ \
 	} \
-	mutex_unique_unlock(mutex); \
-	
+	mutex_unique_unlock(mutex);
+
 /// semaphore lock macro helper
 #define SEMAPHORE_LOCK(mutex, ...) \
 	sem_wait(mutex); \
 	{ \
 		__VA_ARGS__ \
 	} \
-	sem_post(mutex); \
-	
+	sem_post(mutex);

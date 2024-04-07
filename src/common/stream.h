@@ -1,11 +1,6 @@
 
 #pragma once
-
-#include <stdint.h>
-#include <stdlib.h>
-#include <semaphore.h>
-#include <stdbool.h>
-#include <unistd.h>
+#include "external.h"
 
 typedef struct {
 	int connfd;

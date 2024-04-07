@@ -1,16 +1,9 @@
 
 #pragma once
-
-#include <stdint.h>
-#include <semaphore.h>
-#include <stdlib.h>
-#include <stdatomic.h>
-#include <pthread.h>
+#include "external.h"
 
 #include <common/vec.h>
 #include <common/map.h>
-#include <common/const.h>
-#include <common/logger.h>
 #include <server/mutex.h>
 
 // TODO cleanup

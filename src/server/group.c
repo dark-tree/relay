@@ -1,6 +1,9 @@
 
 #include "group.h"
-#include "user.h"
+
+#include <server/user.h>
+#include <common/const.h>
+#include <common/logger.h>
 
 Group* group_create(uint32_t gid, User* user) {
 	Group* group = malloc(sizeof(Group));

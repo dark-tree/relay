@@ -1,6 +1,8 @@
 
 #include "input.h"
 
+#include "common/logger.h"
+
 void input_readline(InputLine* line) {
 	getline(&line->line, &line->length, stdin);
 	line->offset = 0;
@@ -53,15 +55,15 @@ bool input_token(InputLine* line, char* buffer, uint32_t limit, bool string) {
 bool input_number(InputLine* line, long* num) {
 
 	char buffer[128];
-	
+
 	if (!input_token(line, buffer, 128, false)) {
 		return false;
 	}
-	
+
 	if (!input_parse(num, buffer)) {
 		return false;
 	}
-	
+
 	return true;
 
 }
