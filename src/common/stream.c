@@ -1,13 +1,6 @@
 
 #include "stream.h"
 
-#include <sys/socket.h>
-#include <sys/types.h>
-#include <string.h>
-#include <errno.h>
-#include <netinet/in.h>
-#include <netinet/tcp.h>
-
 void nio_create(NioStream* stream, int connfd, uint32_t length) {
 	stream->connfd = connfd;
 	stream->buffer = calloc(length, 1);
@@ -75,7 +68,7 @@ void nio_skip(NioStream* stream, uint32_t bytes) {
 /// ---------------------- ///
 
 void nio_write(NioStream* stream, void* value, uint32_t size) {
-	if (write(stream->connfd, value, size) != size) {
+	if (!stream->open || (write(stream->connfd, value, size) != size)) {
 		stream->open = false;
 	}
 }
@@ -101,7 +94,7 @@ void nio_writebuf(NioStream* stream, NioBlock* block) {
 /// ---------------------- ///
 
 void nio_read(NioStream* stream, void* value, uint32_t size) {
-	if (read(stream->connfd, value, size) != size) {
+	if (!stream->open || read(stream->connfd, value, size) != size) {
 		stream->open = false;
 		memset(value, 0, size);
 	}

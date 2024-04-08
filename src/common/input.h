@@ -31,6 +31,10 @@ void input_readline(InputLine* line);
 /// Returns true on success, on failer returns false and logs the error
 bool input_token(InputLine* line, char* buffer, uint32_t limit, bool string);
 
+/// TODO split input_token into input_token and input_string (the impl would still call a private
+/// function with a bool argument)
+/// bool input_string(InputLine* line, char* buffer, uint32_t limit, bool string);
+
 /// Helper function for parsing the given c-string into a number
 /// Returns true on success, on failer returns false and logs the error
 bool input_parse(long* num, char* buffer);
