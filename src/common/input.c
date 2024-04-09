@@ -19,7 +19,7 @@ char input_norm(char chr) {
 	return chr;
 }
 
-bool input_token(InputLine* line, char* buffer, uint32_t limit, bool string) {
+bool input_lexeme(InputLine* line, char* buffer, uint32_t limit, bool string) {
 
 	char* from = line->line + line->offset;
 	uint32_t src = 0;
@@ -52,11 +52,19 @@ bool input_token(InputLine* line, char* buffer, uint32_t limit, bool string) {
 
 }
 
+bool input_token(InputLine* line, char* buffer, uint32_t limit) {
+	return input_lexeme(line, buffer, limit, false);
+}
+
+bool input_string(InputLine* line, char* buffer, uint32_t limit) {
+	return input_lexeme(line, buffer, limit, true);
+}
+
 bool input_number(InputLine* line, long* num) {
 
 	char buffer[128];
 
-	if (!input_token(line, buffer, 128, false)) {
+	if (!input_token(line, buffer, 128)) {
 		return false;
 	}
 

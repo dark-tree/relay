@@ -28,3 +28,16 @@
 // special IDs
 #define NULL_GROUP 0
 #define NULL_USER 0
+
+// Status in the R2U_MADE
+#define STAT_OK              0x0 // operation completed succesfully 
+#define STAT_ERROR_INVALID   0x1 // no such group or the group is closing
+#define STAT_ERROR_PASSWORD  0x2 // invalid group password
+#define STAT_ERROR_FULL      0x3 // the group member count reached the group memebr limit
+#define STAT_ERROR_LOCK      0x4 // the group is locked and can't be joined 
+#define STAT_ERROR_SATURATED 0x5 // maximum number of concurent groups reached
+#define FROM_MAKE            0x0 
+#define FROM_JOIN            0x1 
+
+#define MADE_COMPOSE(from, stat) ((from << 4) | stat)
+

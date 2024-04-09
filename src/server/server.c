@@ -11,6 +11,8 @@
 #include <server/group.h>
 #include <server/sequence.h>
 
+#define RECV_DEBUG_PRINT true
+
 // And here truth was made, and disjointed chaos of the threads
 // synchronized into one so that a singular state could emerge,
 // and God saw that it was good.
@@ -119,10 +121,10 @@ void* user_thread(void* context) {
 	});
 
 	struct timeval initial_read;
-	struct timeval kupa;
+	struct timeval default_read;
 
 	milis(50, &initial_read);
-	milis(0, &kupa);
+	milis(0, &default_read);
 
 	while (nio_open(stream)) {
 
@@ -156,12 +158,26 @@ void* user_thread(void* context) {
 			}
 
 		}
+		
+		// if not for this check, when nio_header fails to read data (which is higly likely)
+		// the server would erroniusly execute one extra packet
+		if (!nio_open(stream)) {
+			break;
+		}
 
-		nio_timeout(stream, &kupa);
+		nio_timeout(stream, &default_read);
 
 		if (id == U2R_MAKE) {
+		
+			log_debug("Received from user #%d: U2R_MAKE {}\n", user->uid);
 
 			if (user->role != ROLE_CONNECTED) {
+			
+				SEMAPHORE_LOCK(&user->write_mutex, {
+					nio_write8(stream, R2U_STAT);
+					nio_write8(stream, user->role);
+				});
+				
 				continue;
 			}
 
@@ -175,13 +191,17 @@ void* user_thread(void* context) {
 			user->role = ROLE_HOST;
 			user->group = group;
 
-			// TODO write_mutex?
-			nio_write8(stream, R2U_MADE);
-			nio_write8(stream, 1);
-			nio_write32(stream, gid);
+			const uint8_t status_closed = MADE_COMPOSE(FROM_MAKE, STAT_OK);
 
-			nio_write8(stream, R2U_STAT);
-			nio_write8(stream, ROLE_HOST);
+			// TODO consider the use of this mutex
+			SEMAPHORE_LOCK(&user->write_mutex, {
+				nio_write8(stream, R2U_MADE);
+				nio_write8(stream, status_closed);
+				nio_write32(stream, gid);
+
+				nio_write8(stream, R2U_STAT);
+				nio_write8(stream, ROLE_HOST);
+			});
 
 			log_info("User #%d created group #%d\n", user->uid, gid);
 
@@ -193,8 +213,15 @@ void* user_thread(void* context) {
 			const uint32_t gid = nio_read32(stream);
 			const uint32_t pass = nio_read32(stream);
 
+			log_debug("Received from user #%d: U2R_JOIN {gid=%u, pass=%u}\n", user->uid, gid, pass);
+
 			if (user->role != ROLE_CONNECTED) {
-				// TODO: spec
+				
+				SEMAPHORE_LOCK(&user->write_mutex, {
+					nio_write8(stream, R2U_STAT);
+					nio_write8(stream, user->role);
+				});
+				
 				continue;
 			}
 
@@ -204,15 +231,15 @@ void* user_thread(void* context) {
 			// requiring a unique lock on the same mutex to finish the removal process.
 			SHARED_LOCK(&group_mutex, {
 
+				const uint8_t status_closed = MADE_COMPOSE(FROM_JOIN, STAT_ERROR_INVALID);
 				Group* const group = idmap_get(groups, gid);
 
 				if (!group || group->close) {
 
-					// TODO: spec
 					SEMAPHORE_LOCK(&user->write_mutex, {
 						nio_write8(stream, R2U_MADE);
-						nio_write8(stream, 0);
-						nio_write32(stream, 0);
+						nio_write8(stream, status_closed);
+						nio_write32(stream, NULL_GROUP);
 					});
 
 				} else {
@@ -240,8 +267,10 @@ void* user_thread(void* context) {
 
 							// notify new member
 							SEMAPHORE_LOCK(&user->write_mutex, {
+								const uint8_t status = MADE_COMPOSE(FROM_JOIN, STAT_OK);
+							
 								nio_write8(stream, R2U_MADE);
-								nio_write8(stream, 2);
+								nio_write8(stream, status);
 								nio_write32(stream, group->gid);
 
 								nio_write8(stream, R2U_STAT);
@@ -255,8 +284,8 @@ void* user_thread(void* context) {
 							// TODO: spec
 							SEMAPHORE_LOCK(&user->write_mutex, {
 								nio_write8(stream, R2U_MADE);
-								nio_write8(stream, 0);
-								nio_write32(stream, 0);
+								nio_write8(stream, status_closed);
+								nio_write32(stream, NULL_GROUP);
 							});
 
 						}
@@ -271,8 +300,16 @@ void* user_thread(void* context) {
 		}
 
 		if (id == U2R_QUIT) {
+		
+			log_debug("Received from user #%d: U2R_QUIT {}\n", user->uid);
 
 			if (user->role == ROLE_CONNECTED) {
+			
+				SEMAPHORE_LOCK(&user->write_mutex, {
+					nio_write8(stream, R2U_STAT);
+					nio_write8(stream, user->role);
+				});
+			
 				continue;
 			}
 
@@ -296,7 +333,15 @@ void* user_thread(void* context) {
 
 			const uint32_t uid = nio_read32(stream);
 
+			log_debug("Received from user #%d: U2R_KICK {uid=%u}\n", user->uid, uid);
+
 			if (user->role != ROLE_HOST) {
+			
+				SEMAPHORE_LOCK(&user->write_mutex, {
+					nio_write8(stream, R2U_STAT);
+					nio_write8(stream, ROLE_HOST);
+				});
+
 				continue;
 			}
 
@@ -321,23 +366,31 @@ void* user_thread(void* context) {
 			const uint32_t uid = nio_read32(stream);
 			const uint32_t len = nio_read32(stream);
 
+			log_debug("Received from user #%d: U2R_SEND {uid=%u, len=%u}\n", user->uid, uid, len);
+
 			// packet was send while user was in invalid state
 			// we have to read the message bytes for the stream
 			// to stay synchronized
 			if (user->role == ROLE_CONNECTED) {
+			
 				nio_skip(stream, len);
+				
+				SEMAPHORE_LOCK(&user->write_mutex, {
+					nio_write8(stream, R2U_STAT);
+					nio_write8(stream, user->role);
+				});
+				
 				continue;
 			}
 
-			// TODO potentially optimize user access
+			// TODO opti: potentially optimize user access
 			SHARED_LOCK(&user_mutex, {
 
 				User* target = idmap_get(users, uid);
 
 				if (target && target->group == user->group) {
 
-					// TODO read first block before we lock target
-
+					// TODO opti: read first block before we lock target
 					SEMAPHORE_LOCK(&target->write_mutex, {
 
 						NIO_CORK(&target->stream, {
@@ -351,8 +404,8 @@ void* user_thread(void* context) {
 
 							while (block.remaining) {
 
-								// TODO add guard byte
-								// TODO packet interweaving
+								// TODO spec: add guard byte
+								// TODO opti: packet interweaving
 
 								nio_readbuf(stream, &block);
 								nio_writebuf(&target->stream, &block);
@@ -382,11 +435,20 @@ void* user_thread(void* context) {
 			const uint32_t uid = nio_read32(stream);
 			const uint32_t len = nio_read32(stream);
 
+			log_debug("Received from user #%d: U2R_BROD {uid=%u, len=%u}\n", user->uid, uid, len);
+
 			// packet send while user was in invalid state
 			// we have to read the message bytes for the stream
 			// to stay synchronized
 			if (user->role == ROLE_CONNECTED) {
+			
 				nio_skip(stream, len);
+				
+				SEMAPHORE_LOCK(&user->write_mutex, {
+					nio_write8(stream, R2U_STAT);
+					nio_write8(stream, user->role);
+				});
+				
 				continue;
 			}
 
@@ -414,8 +476,8 @@ void* user_thread(void* context) {
 
 				while (block.remaining) {
 
-					// TODO add guard byte
-					// TODO packet interweaving
+					// TODO spac: add guard byte
+					// TODO opti: packet interweaving
 
 					nio_readbuf(stream, &block);
 
@@ -509,7 +571,7 @@ int main() {
 	while (true) {
 		input_readline(&line);
 
-		if (!input_token(&line, buffer, 255, false)) {
+		if (!input_token(&line, buffer, 255)) {
 			continue;
 		}
 

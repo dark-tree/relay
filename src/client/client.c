@@ -8,10 +8,14 @@
 
 // TODO move somewhere else
 const char* made_codestr(uint8_t code) {
-	if (code == 0x01) return "Created group #%d\n";
-	if (code == 0x02) return "Joined group #%d\n";
+	if (code == 0x00) return "Created group #%d\n";
+	if (code == 0x10) return "Joined group #%d\n";
 
-	return "Failed to joined the given group!\n";
+	if (code & 0xF0) { 
+		return "Failed to join the given group!\n";
+	} else {
+		return "Failed to create group!\n";
+	}
 }
 
 // TODO move somewhere else
@@ -163,7 +167,7 @@ int main(int argc, char* argv[]) {
 	while (true) {
 		input_readline(&line);
 
-		if (input_token(&line, buffer, 255, false)) {
+		if (input_token(&line, buffer, 255)) {
 
 			if (streq(buffer, "help")) {
 				printf("List of commands:\n");
@@ -175,6 +179,7 @@ int main(int argc, char* argv[]) {
 				printf(" * kick <uid>         Kick user from group\n");
 				printf(" * send <uid> <msg>   Send message to user\n");
 				printf(" * brod <uid> <msg>   Send message to all, except user\n");
+				printf(" * rand <cnt>         Write cnt random bytes into the server connection\n");
 			}
 
 			if (streq(buffer, "push")) {
@@ -184,6 +189,19 @@ int main(int argc, char* argv[]) {
 					nio_write8(&stream, value);
 				}
 
+			}
+			
+			if (streq(buffer, "rand")) {
+				
+				long value;
+				if (input_number(&line, &value)) {
+					
+					for (int i = 0; i < value; i ++) {
+						nio_write8(&stream, rand());
+					}
+					
+				}	
+				
 			}
 
 			if (streq(buffer, "make")) {
@@ -229,7 +247,7 @@ int main(int argc, char* argv[]) {
 				long uid;
 				if (input_number(&line, &uid)) {
 
-					if (input_token(&line, buffer, 255, true)) {
+					if (input_string(&line, buffer, 255)) {
 
 						long len = strlen(buffer);
 
@@ -249,7 +267,7 @@ int main(int argc, char* argv[]) {
 				long uid;
 				if (input_number(&line, &uid)) {
 
-					if (input_token(&line, buffer, 255, true)) {
+					if (input_string(&line, buffer, 255)) {
 
 						long len = strlen(buffer);
 

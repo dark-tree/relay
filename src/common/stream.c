@@ -1,6 +1,8 @@
 
 #include "stream.h"
 
+#include <common/logger.h>
+
 void nio_create(NioStream* stream, int connfd, uint32_t length) {
 	stream->connfd = connfd;
 	stream->buffer = calloc(length, 1);
@@ -68,8 +70,40 @@ void nio_skip(NioStream* stream, uint32_t bytes) {
 /// ---------------------- ///
 
 void nio_write(NioStream* stream, void* value, uint32_t size) {
-	if (!stream->open || (write(stream->connfd, value, size) != size)) {
-		stream->open = false;
+
+	while (stream->open) {
+	
+		int status = write(stream->connfd, value, size);
+		
+		// success
+		if (status == size) {
+			return;
+		}
+		
+		// partial success, less than expected bytes actually written - retry
+		if (status > 0) {
+			log_debug("Call to write() completed partially! (requested: %d, got: %d)\n", size, status);
+			size -= status;
+			value += status;
+			continue;
+		}
+		
+		// error, consider the connection unusable
+		if (status == -1) {
+			log_debug("Call to write() failed! (errno: %s)\n", strerror(errno));
+		
+			stream->open = false;
+			return;
+		}
+		
+		// connection closed
+		if (status == 0) {
+			log_debug("Call to write() reported end-of-file!\n");
+		
+			stream->open = false;
+			return;
+		}
+	
 	}
 }
 
@@ -94,10 +128,44 @@ void nio_writebuf(NioStream* stream, NioBlock* block) {
 /// ---------------------- ///
 
 void nio_read(NioStream* stream, void* value, uint32_t size) {
-	if (!stream->open || read(stream->connfd, value, size) != size) {
-		stream->open = false;
-		memset(value, 0, size);
+
+	while (stream->open) {
+	
+		int status = read(stream->connfd, value, size);
+		
+		// success
+		if (status == size) {
+			return;
+		}
+		
+		// partial success, less than expected bytes actually read - retry
+		if (status > 0) {
+			log_debug("Call to read() completed partially! (requested: %d, got: %d)\n", size, status);
+			size -= status;
+			value += status;
+			continue;
+		}
+		
+		// error, consider the connection unusable
+		if (status == -1) {
+			log_debug("Call to read() failed! (errno: %s)\n", strerror(errno));
+		
+			stream->open = false;
+			memset(value, 0, size);
+			return;
+		}
+	
+		// conection closed
+		if (status == 0) {
+			log_debug("Call to read() reported end-of-file!\n");
+		
+			stream->open = false;
+			memset(value, 0, size);
+			return;
+		}
+	
 	}
+
 }
 
 uint8_t nio_read8(NioStream* stream) {
@@ -118,8 +186,14 @@ uint32_t nio_read32(NioStream* stream) {
 	return value;
 }
 
+
+// TODO move somewhere else
+uint32_t min(uint32_t a, uint32_t b) {
+	return a < b ? a : b;
+}
+
 bool nio_readbuf(NioStream* stream, NioBlock* block) {
-	uint32_t section = block->remaining % stream->size;
+	uint32_t section = min(block->remaining, stream->size);
 	nio_read(stream, stream->buffer, section);
 	block->remaining -= section;
 	block->length = section;

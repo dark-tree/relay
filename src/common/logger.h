@@ -8,19 +8,21 @@ void log_header(const char* type);
 
 /// Set logging level.
 /// Refer to the macros below.
-void log_setlevel(uint16_t bitset);
+void log_setlv(uint16_t bitset);
 
 /// check if the given logging level is met
 /// This function should not be used manually.
-bool log_chklevel(uint16_t flag);
+bool log_chklv(uint16_t flag);
 
-#define LOG_FLAG_INFO  1
-#define LOG_FLAG_WARN  2
-#define LOG_FLAG_ERROR 4
-#define LOG_FLAG_FATAL 8
+#define LOG_FLAG_DEBUG 0x1
+#define LOG_FLAG_INFO  0x2
+#define LOG_FLAG_WARN  0x4
+#define LOG_FLAG_ERROR 0x8
+#define LOG_FLAG_FATAL 0xF
 
 // macros for logging using the same syntax that printf uses
-#define log_info(...)  if (log_chklevel(LOG_FLAG_INFO))  { log_header("INFO");  printf(__VA_ARGS__); }
-#define log_warn(...)  if (log_chklevel(LOG_FLAG_WARN))  { log_header("WARN");  printf(__VA_ARGS__); }
-#define log_error(...) if (log_chklevel(LOG_FLAG_ERROR)) { log_header("ERROR"); printf(__VA_ARGS__); }
-#define log_fatal(...) if (log_chklevel(LOG_FLAG_FATAL)) { log_header("FATAL"); printf(__VA_ARGS__); }
+#define log_debug(...) if (log_chklv(LOG_FLAG_DEBUG)) { log_header("DEBUG"); printf(__VA_ARGS__); }
+#define log_info(...)  if (log_chklv(LOG_FLAG_INFO))  { log_header("INFO");  printf(__VA_ARGS__); }
+#define log_warn(...)  if (log_chklv(LOG_FLAG_WARN))  { log_header("WARN");  printf(__VA_ARGS__); }
+#define log_error(...) if (log_chklv(LOG_FLAG_ERROR)) { log_header("ERROR"); printf(__VA_ARGS__); }
+#define log_fatal(...) if (log_chklv(LOG_FLAG_FATAL)) { log_header("FATAL"); printf(__VA_ARGS__); }

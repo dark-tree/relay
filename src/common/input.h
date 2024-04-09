@@ -25,15 +25,11 @@ void input_readline(InputLine* line);
 
 /// Reads next token from the line into the given buffer,
 /// where limit is the length in bytes of the buffer given.
-/// The boolean parameter 'string' controls whether the next token
-/// is to be expected to be a string. The function will then write the string
-/// content into the given buffer (without the quotes).
-/// Returns true on success, on failer returns false and logs the error
-bool input_token(InputLine* line, char* buffer, uint32_t limit, bool string);
+bool input_token(InputLine* line, char* buffer, uint32_t limit);
 
-/// TODO split input_token into input_token and input_string (the impl would still call a private
-/// function with a bool argument)
-/// bool input_string(InputLine* line, char* buffer, uint32_t limit, bool string);
+/// Reads the contnet of the next string from the line into the given buffer,
+/// where limit is the length in bytes of the buffer given.
+bool input_string(InputLine* line, char* buffer, uint32_t limit);
 
 /// Helper function for parsing the given c-string into a number
 /// Returns true on success, on failer returns false and logs the error
