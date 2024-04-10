@@ -11,8 +11,12 @@ Group* group_create(uint32_t gid, User* user) {
 	group->gid = gid;
 	group->uid = user->uid;
 	group->host = user;
+
+	// settings
 	group->password = 0;
 	group->flags = 0;
+	group->member_limit = 0xFFFFFFFF;
+	group->payload_limit = 0xFFFFFFFF;
 
 	// reference count is used for group disbanding
 	group->refcnt = 1;

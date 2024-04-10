@@ -14,10 +14,14 @@ extern sem_t truth_mutex;
 typedef struct Group_tag {
 	uint32_t gid;
 	uint32_t uid;
-	uint32_t password;
-	uint32_t flags;
 	struct User_tag* host;
 	IdVec members;
+
+	// settings
+	uint32_t password;      // group join password
+	uint32_t flags;         // a collection of group flags
+	uint32_t member_limit;  // maximum number of group members
+	uint32_t payload_limit; // maximum packet size in this group
 
 	volatile bool close;
 	atomic_int refcnt;

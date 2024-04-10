@@ -32,3 +32,11 @@ User* user_create(uint32_t uid, int connfd);
 /// Frees memory alloced for the user and any internally
 /// used structures. The object is no longer usable after this call.
 void user_free(User* user);
+
+int user_verify(User* user, uint8_t role);
+
+void user_kick(User* user, uint32_t uid);
+
+void user_quit(User* user);
+
+uint32_t* user_setting(User* user, uint32_t key, bool write);

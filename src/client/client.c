@@ -11,7 +11,7 @@ const char* made_codestr(uint8_t code) {
 	if (code == 0x00) return "Created group #%d\n";
 	if (code == 0x10) return "Joined group #%d\n";
 
-	if (code & 0xF0) { 
+	if (code & 0xF0) {
 		return "Failed to join the given group!\n";
 	} else {
 		return "Failed to create group!\n";
@@ -180,6 +180,7 @@ int main(int argc, char* argv[]) {
 				printf(" * send <uid> <msg>   Send message to user\n");
 				printf(" * brod <uid> <msg>   Send message to all, except user\n");
 				printf(" * rand <cnt>         Write cnt random bytes into the server connection\n");
+				// TODO stop command
 			}
 
 			if (streq(buffer, "push")) {
@@ -190,18 +191,18 @@ int main(int argc, char* argv[]) {
 				}
 
 			}
-			
+
 			if (streq(buffer, "rand")) {
-				
+
 				long value;
 				if (input_number(&line, &value)) {
-					
+
 					for (int i = 0; i < value; i ++) {
 						nio_write8(&stream, rand());
 					}
-					
-				}	
-				
+
+				}
+
 			}
 
 			if (streq(buffer, "make")) {
