@@ -10,6 +10,7 @@
 extern IdMap* groups;
 extern SharedMutex group_mutex;
 extern sem_t truth_mutex;
+extern atomic_int group_count;
 
 typedef struct Group_tag {
 	uint32_t gid;

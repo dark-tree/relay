@@ -16,7 +16,6 @@ void dummy_handler(int signo, siginfo_t *info, void *context) {
 	// do nothing, we only care that the thread was interrupted
 }
 
-atomic_int user_count;
 bool should_accept;
 
 // And here truth was made, and disjointed chaos of the threads
@@ -27,17 +26,19 @@ sem_t truth_mutex;
 IdMap* users;
 SharedMutex user_mutex;
 IdSequence uid_sequence;
+atomic_int user_count;
 
 IdMap* groups;
 SharedMutex group_mutex;
 IdSequence gid_sequence;
+atomic_int group_count;
 
 void accept_handle(int sock, int conn);
 
 void* tcps_accept(void* user) {
 
 	int sockfd = (long) user;
-	
+
 	struct sigaction action = {0};
 	action.sa_flags = 0;
 	action.sa_sigaction = dummy_handler;
@@ -58,37 +59,37 @@ void* tcps_accept(void* user) {
 		int connfd = accept(sockfd, (struct sockaddr*) &address, &len);
 
 		if (connfd == -1) {
-		
+
 			const int err = errno;
-			
+
 			if (err == EAGAIN || err == EWOULDBLOCK || err == ETIMEDOUT) {
 				log_debug("Call to accept() timed out\n");
 				continue;
 			}
-			
+
 			if (err == EMFILE || err == ENFILE || err == ENOMEM || err == ENOBUFS || err == ENOSR) {
 				log_error("Failed to accept new connection, resources exhausted!\n");
 				continue;
 			}
-			
+
 			if (err == EPERM) {
 				log_error("Failed to accept new connection, operation not permitted!\n");
 				continue;
-					
+
 			}
-			
+
 			if (err == EPROTO) {
 				log_warn("Failed to accept new connection, protocol error!\n");
 				continue;
 			}
-			
+
 			// this is triggered from the main thread with the
-			// stop command (it sends a SIGUSR1 signal to this 
-			// thread using pthread_kill
+			// 'stop' command (it sends a SIGUSR1 signal to this
+			// thread using pthread_kill)
 			if (err == EINTR && !should_accept) {
 				break;
 			}
-		
+
 			log_fatal("Unexpected error in accept thread: %s", strerror(err));
 			break;
 		}
@@ -97,9 +98,9 @@ void* tcps_accept(void* user) {
 
 	}
 
-	// if we got here server exist must have been triggered, or error occured
+	// if we got here server exit must have been triggered, or error occured
 	log_info("Server shutting down...\n");
-		
+
 	SHARED_LOCK(&user_mutex, {
 		IdMapIterator iter = idmap_iterator(users);
 
@@ -107,12 +108,12 @@ void* tcps_accept(void* user) {
 			nio_drop(&(((User*) idmap_next(&iter))->stream));
 		}
 	});
-	
-	// spin lock! 
+
+	// spin lock!
 	while (user_count > 0) {
 		usleep(10000); // 10ms
 	}
-	
+
 	close(sockfd);
 	exit(0);
 
@@ -153,7 +154,7 @@ pthread_t tcps_start(uint16_t port, uint16_t backlog, void (*accept_callback) (i
 
 	pthread_t thread;
 	pthread_create(&thread, NULL, tcps_accept, (void*) (long) sockfd);
-	
+
 	return thread;
 
 }
@@ -240,6 +241,7 @@ void* user_thread(void* context) {
 
 			UNIQUE_LOCK(&group_mutex, {
 				idmap_put(groups, gid, group);
+				group_count ++;
 			});
 
 			user->role = ROLE_HOST;
@@ -325,7 +327,6 @@ void* user_thread(void* context) {
 
 						} else {
 
-							// TODO: spec
 							SEMAPHORE_LOCK(&user->write_mutex, {
 								nio_write8(stream, R2U_MADE);
 								nio_write8(stream, status_closed);
@@ -584,7 +585,7 @@ void accept_handle(int sock, int conn) {
 }
 
 int main() {
-	
+
 	// we need to block it so that write() doesn't trigger signals on error
 	// as that would make it harder for use to detect errors
 	if (signal(SIGPIPE, SIG_IGN) == SIG_ERR) {
@@ -594,7 +595,8 @@ int main() {
 
 	should_accept = true;
 	user_count = 0;
-	
+	group_count = 0;
+
 	users = idmap_create();
 	groups = idmap_create();
 
@@ -628,19 +630,19 @@ int main() {
 			printf(" * members <gid>  List all members of a group\n");
 			printf(" * stop           Stop the server\n");
 		}
-		
-		if (streq(buffer, "stop")) {			
+
+		if (streq(buffer, "stop")) {
 			should_accept = false;
-			pthread_kill(accept_thread, SIGUSR1);	
+			pthread_kill(accept_thread, SIGUSR1);
 		}
 
 		if (streq(buffer, "users")) {
-		
+
 			if (user_count == 0) {
 				printf("There are currently no connected users.\n");
 				continue;
 			}
-		
+
 			printf("List of all %d users:\n", user_count);
 
 			SHARED_LOCK(&user_mutex, {
@@ -668,7 +670,13 @@ int main() {
 		}
 
 		if (streq(buffer, "groups")) {
-			printf("List of groups:\n");
+
+			if (group_count == 0) {
+				printf("There are currently no open groups.\n");
+				continue;
+			}
+
+			printf("List of all %d groups:\n", group_count);
 
 			SHARED_LOCK(&group_mutex, {
 				IdMapIterator iter = idmap_iterator(groups);

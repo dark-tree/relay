@@ -73,10 +73,11 @@ void* group_cleanup(void* this) {
 	// the U2R_JOIN packet, and guarantees that the group will not be removed during usage.
 	UNIQUE_LOCK(&group_mutex, {
 		free(idmap_remove(groups, group->gid));
+		group_count --;
 	});
 
 	// now safely free the group
-	// TODO should we put group_free into group_mutex UNIQUE_LOCK
+	// TODO should we put group_free into group_mutex UNIQUE_LOCK?
 	group_free(group);
 
 	log_info("User #%d disbanded group #%d\n", uid, gid);
