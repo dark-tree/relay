@@ -19,6 +19,8 @@ typedef struct {
 /// the length parameter controls the size of the transit buffer (the buffer used by NioBlock).
 void nio_create(NioStream* stream, int connfd, uint32_t length);
 
+void nio_drop(NioStream* stream);
+
 /// Frees the internal structures and cleanly closes the connection,
 /// must by called on all NioStream structs initialized with nio_create.
 void nio_free(NioStream* stream);

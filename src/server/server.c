@@ -6,12 +6,18 @@
 #include <common/const.h>
 #include <common/vec.h>
 #include <common/input.h>
+#include <common/util.h>
 #include <server/mutex.h>
 #include <server/user.h>
 #include <server/group.h>
 #include <server/sequence.h>
 
-#define RECV_DEBUG_PRINT true
+void dummy_handler(int signo, siginfo_t *info, void *context) {
+	// do nothing, we only care that the thread was interrupted
+}
+
+atomic_int user_count;
+bool should_accept;
 
 // And here truth was made, and disjointed chaos of the threads
 // synchronized into one so that a singular state could emerge,
@@ -31,6 +37,18 @@ void accept_handle(int sock, int conn);
 void* tcps_accept(void* user) {
 
 	int sockfd = (long) user;
+	
+	struct sigaction action = {0};
+	action.sa_flags = 0;
+	action.sa_sigaction = dummy_handler;
+
+	// we need to handle the SIGUSR1 in this thread so that accept() returns EINTR
+	// Note: we can't use SIG_IGN here as that wouldn't interrupt the accept() call
+	// Note: we have to use sigaction() over signal(), as otherwise it doesn't work (idk why)
+	if (sigaction(SIGUSR1, &action, NULL) == -1) {
+		log_fatal("Failed to set a dummy handler for SIGUSR1 in accept thread!\n");
+		exit(-1);
+	}
 
 	while (true) {
 
@@ -39,20 +57,68 @@ void* tcps_accept(void* user) {
 
 		int connfd = accept(sockfd, (struct sockaddr*) &address, &len);
 
-		if (connfd < 0) {
-			log_warn("Failed to accept connection!\n");
-			continue;
+		if (connfd == -1) {
+		
+			const int err = errno;
+			
+			if (err == EAGAIN || err == EWOULDBLOCK || err == ETIMEDOUT) {
+				log_debug("Call to accept() timed out\n");
+				continue;
+			}
+			
+			if (err == EMFILE || err == ENFILE || err == ENOMEM || err == ENOBUFS || err == ENOSR) {
+				log_error("Failed to accept new connection, resources exhausted!\n");
+				continue;
+			}
+			
+			if (err == EPERM) {
+				log_error("Failed to accept new connection, operation not permitted!\n");
+				continue;
+					
+			}
+			
+			if (err == EPROTO) {
+				log_warn("Failed to accept new connection, protocol error!\n");
+				continue;
+			}
+			
+			// this is triggered from the main thread with the
+			// stop command (it sends a SIGUSR1 signal to this 
+			// thread using pthread_kill
+			if (err == EINTR && !should_accept) {
+				break;
+			}
+		
+			log_fatal("Unexpected error in accept thread: %s", strerror(err));
+			break;
 		}
 
 		accept_handle(sockfd, connfd);
 
 	}
 
+	// if we got here server exist must have been triggered, or error occured
+	log_info("Server shutting down...\n");
+		
+	SHARED_LOCK(&user_mutex, {
+		IdMapIterator iter = idmap_iterator(users);
+
+		while (idmap_has(&iter)) {
+			nio_drop(&(((User*) idmap_next(&iter))->stream));
+		}
+	});
+	
+	// spin lock! 
+	while (user_count > 0) {
+		usleep(10000); // 10ms
+	}
+	
 	close(sockfd);
+	exit(0);
 
 }
 
-void tcps_start(uint16_t port, uint16_t backlog, void (*accept_callback) (int sockfd, int connfd)) {
+pthread_t tcps_start(uint16_t port, uint16_t backlog, void (*accept_callback) (int sockfd, int connfd)) {
 
 	struct sockaddr_in address;
 	int sockfd = socket(AF_INET, SOCK_STREAM, 0);
@@ -65,10 +131,6 @@ void tcps_start(uint16_t port, uint16_t backlog, void (*accept_callback) (int so
 	int enable = 1;
 	if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &enable, sizeof(int)) < 0) {
 		log_error("Failed to configure socket address!\n");
-	}
-
-	if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEPORT, &enable, sizeof(int)) < 0) {
-		log_error("Failed to configure socket port!\n");
 	}
 
 	if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEPORT, &enable, sizeof(int)) < 0) {
@@ -91,21 +153,19 @@ void tcps_start(uint16_t port, uint16_t backlog, void (*accept_callback) (int so
 
 	pthread_t thread;
 	pthread_create(&thread, NULL, tcps_accept, (void*) (long) sockfd);
+	
+	return thread;
 
-}
-
-void milis(uint32_t msec, struct timeval *tv) {
-	tv->tv_sec = msec / 1000;
-	tv->tv_usec = (msec % 1000) * 1000;
 }
 
 void* user_thread(void* context) {
+
 	User * const user = (User*) context;
 	NioStream* stream = &user->stream;
 
 	log_info("User #%d connected\n", user->uid);
 
-	uint8_t brand[64] = "My Little Relay - Ethernet To Magia!";
+	uint8_t brand[64] = "My Little Relay";
 
 	NIO_CORK(stream, {
 		// send the welcome packet
@@ -123,8 +183,8 @@ void* user_thread(void* context) {
 	struct timeval initial_read;
 	struct timeval default_read;
 
-	milis(50, &initial_read);
-	milis(0, &default_read);
+	util_mstime(&initial_read, 50);
+	util_mstime(&default_read, 100);
 
 	while (nio_open(stream)) {
 
@@ -501,6 +561,7 @@ void* user_thread(void* context) {
 
 	UNIQUE_LOCK(&user_mutex, {
 		idmap_remove(users, user->uid);
+		user_count --;
 	});
 
 	log_info("User #%d disconnected\n", user->uid);
@@ -515,6 +576,7 @@ void accept_handle(int sock, int conn) {
 
 	UNIQUE_LOCK(&user_mutex, {
 		idmap_put(users, uid, user);
+		user_count ++;
 	});
 
 	pthread_t thread;
@@ -522,12 +584,17 @@ void accept_handle(int sock, int conn) {
 }
 
 int main() {
-
+	
+	// we need to block it so that write() doesn't trigger signals on error
+	// as that would make it harder for use to detect errors
 	if (signal(SIGPIPE, SIG_IGN) == SIG_ERR) {
 		log_fatal("Failed to set a ignore handler for SIGPIPE!\n");
 		exit(-1);
 	}
 
+	should_accept = true;
+	user_count = 0;
+	
 	users = idmap_create();
 	groups = idmap_create();
 
@@ -538,7 +605,7 @@ int main() {
 	idseq_begin(&uid_sequence, IDSEQ_MONOTONIC);
 	idseq_begin(&gid_sequence, IDSEQ_MONOTONIC);
 
-	tcps_start(9686, 8, accept_handle);
+	pthread_t accept_thread = tcps_start(9686, 8, accept_handle);
 
 	InputLine line;
 	line.line = NULL;
@@ -559,11 +626,22 @@ int main() {
 			printf(" * users          List all users\n");
 			printf(" * groups         List all groups\n");
 			printf(" * members <gid>  List all members of a group\n");
-			// TODO stop command
+			printf(" * stop           Stop the server\n");
+		}
+		
+		if (streq(buffer, "stop")) {			
+			should_accept = false;
+			pthread_kill(accept_thread, SIGUSR1);	
 		}
 
 		if (streq(buffer, "users")) {
-			printf("List of users:\n");
+		
+			if (user_count == 0) {
+				printf("There are currently no connected users.\n");
+				continue;
+			}
+		
+			printf("List of all %d users:\n", user_count);
 
 			SHARED_LOCK(&user_mutex, {
 				IdMapIterator iter = idmap_iterator(users);

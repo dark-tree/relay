@@ -1,5 +1,5 @@
 
-COMMON_DEPS := build/common/logger.o build/common/map.o build/common/set.o build/common/vec.o build/common/stream.o build/common/input.o
+COMMON_DEPS := build/common/logger.o build/common/map.o build/common/set.o build/common/vec.o build/common/stream.o build/common/input.o build/common/util.o
 SERVER_DEPS := build/server/group.o build/server/mutex.o build/server/sequence.o build/server/server.o build/server/user.o
 CLIENT_DEPS := build/client/client.o
 
@@ -22,6 +22,7 @@ build/bin/server: $(COMMON_DEPS) $(SERVER_DEPS)
 
 build/common/logger.o: src/common/logger.c
 build/common/map.o: src/common/map.c
+build/common/util.o: src/common/util.c
 build/common/set.o: src/common/set.c
 build/common/vec.o: src/common/vec.c
 build/common/stream.o: src/common/stream.c

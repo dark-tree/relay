@@ -26,7 +26,7 @@ Group* group_create(uint32_t gid, User* user) {
 	group->members = idvec_create(16);
 	idvec_put(&group->members, user);
 
-	// deletion_mutex shall be initially locked
+	// disband_mutex shall be initially locked
 	sem_init(&group->master_mutex, 0, 1);
 	sem_init(&group->disband_mutex, 0, 0);
 

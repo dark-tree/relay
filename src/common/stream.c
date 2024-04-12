@@ -2,6 +2,7 @@
 #include "stream.h"
 
 #include <common/logger.h>
+#include <common/util.h>
 
 void nio_create(NioStream* stream, int connfd, uint32_t length) {
 	stream->connfd = connfd;
@@ -10,7 +11,12 @@ void nio_create(NioStream* stream, int connfd, uint32_t length) {
 	stream->open = true;
 }
 
+void nio_drop(NioStream* stream) {
+	stream->open = false;
+}
+
 void nio_free(NioStream* stream) {
+	stream->open = false;
 	free(stream->buffer);
 	close(stream->connfd);
 }
@@ -28,6 +34,11 @@ bool nio_open(NioStream* stream) {
 }
 
 int nio_header(NioStream* stream, uint8_t* id) {
+
+	if (!stream->open) {
+		return 3;
+	}
+
 	const int status = read(stream->connfd, id, sizeof(uint8_t));
 
 	// packet header was read
@@ -186,14 +197,8 @@ uint32_t nio_read32(NioStream* stream) {
 	return value;
 }
 
-
-// TODO move somewhere else
-uint32_t min(uint32_t a, uint32_t b) {
-	return a < b ? a : b;
-}
-
 bool nio_readbuf(NioStream* stream, NioBlock* block) {
-	uint32_t section = min(block->remaining, stream->size);
+	uint32_t section = util_min(block->remaining, stream->size);
 	nio_read(stream, stream->buffer, section);
 	block->remaining -= section;
 	block->length = section;

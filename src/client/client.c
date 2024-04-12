@@ -5,6 +5,7 @@
 #include <common/stream.h>
 #include <common/input.h>
 #include <common/logger.h>
+#include <common/util.h>
 
 // TODO move somewhere else
 const char* made_codestr(uint8_t code) {
@@ -27,32 +28,39 @@ const char* role_tostr(uint8_t role) {
 	return "<invalid value>";
 }
 
-void sanitize_buffer(uint8_t* buffer, uint32_t len) {
-
-	for (int i = 0; i < len; i ++) {
-		uint8_t byte = buffer[i];
-
-		if (byte == 0) {
-			return;
-		}
-
-		if (byte < ' ') {
-			buffer[i] = '?';
-		}
-
-		if (byte > '~') {
-			buffer[i] = '?';
-		}
-	}
-
+void milis(uint32_t msec, struct timeval *tv) {
+	tv->tv_sec = msec / 1000;
+	tv->tv_usec = (msec % 1000) * 1000;
 }
 
 void* server_listener(void* user) {
 	NioStream* stream = (NioStream*) user;
 
-	while (nio_open(stream)) {
+	struct timeval initial_read;
+	struct timeval default_read;
 
-		uint8_t id = nio_read8(stream);
+	util_mstime(&initial_read, 100);
+	util_mstime(&default_read, 0);
+
+	while (nio_open(stream)) {
+	
+		uint8_t id = 0;
+		
+		nio_timeout(stream, &initial_read);
+		
+		while (true) {
+		
+			if (nio_header(stream, &id)) {
+				break;
+			}
+			
+		}
+
+		nio_timeout(stream, &default_read);
+		
+		if (!nio_open(stream)) {
+			break;
+		}
 
 		if (id == R2U_WELC) {
 
@@ -65,7 +73,7 @@ void* server_listener(void* user) {
 			buffer[64] = 0;
 
 			// remove any sneaky characters that could brake formatting
-			sanitize_buffer(buffer, 64);
+			util_sanitize(buffer, 64);
 
 			log_info("Recieved URP welcome, using protocol v%d.%d (uid: %d)\n", ver, rev, uid);
 			log_info("Server identifies as: '%s'\n", buffer);
@@ -80,7 +88,7 @@ void* server_listener(void* user) {
 			nio_read(stream, buffer, len);
 			buffer[len] = 0;
 
-			sanitize_buffer(buffer, len);
+			util_sanitize(buffer, len);
 
 			log_info("User #%d said: '%s'\n", uid, buffer);
 			continue;
@@ -115,6 +123,8 @@ void* server_listener(void* user) {
 	}
 
 	log_info("Connection closed\n");
+	
+	nio_free(stream);
 	exit(0);
 
 }
@@ -146,14 +156,14 @@ int main(int argc, char* argv[]) {
 	memcpy(&address.sin_addr, host->h_addr_list[0], host->h_length);
 
 	if (connect(sockfd, (struct sockaddr*) &address, sizeof(address)) != 0) {
-        log_fatal("Failed to connect to server!\n");
-        exit(-1);
-    }
+		log_fatal("Failed to connect to server!\n");
+		exit(-1);
+	}
 
 	log_info("Successfully made a TCP connection to server.\n");
 
 	NioStream stream;
-	nio_create(&stream, (int) (uint64_t) sockfd, 1024);
+	nio_create(&stream, (int) sockfd, 1024);
 
 	pthread_t thread;
 	pthread_create(&thread, NULL, server_listener, &stream);
@@ -180,7 +190,7 @@ int main(int argc, char* argv[]) {
 				printf(" * send <uid> <msg>   Send message to user\n");
 				printf(" * brod <uid> <msg>   Send message to all, except user\n");
 				printf(" * rand <cnt>         Write cnt random bytes into the server connection\n");
-				// TODO stop command
+				printf(" * stop               Stop the client\n");
 			}
 
 			if (streq(buffer, "push")) {
@@ -229,6 +239,10 @@ int main(int argc, char* argv[]) {
 
 			if (streq(buffer, "quit")) {
 				nio_write8(&stream, U2R_QUIT);
+			}
+			
+			if (streq(buffer, "stop")) {
+				nio_drop(&stream);
 			}
 
 			if (streq(buffer, "kick")) {
