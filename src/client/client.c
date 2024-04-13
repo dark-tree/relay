@@ -43,21 +43,21 @@ void* server_listener(void* user) {
 	util_mstime(&default_read, 0);
 
 	while (nio_open(stream)) {
-	
+
 		uint8_t id = 0;
-		
+
 		nio_timeout(stream, &initial_read);
-		
+
 		while (true) {
-		
+
 			if (nio_header(stream, &id)) {
 				break;
 			}
-			
+
 		}
 
 		nio_timeout(stream, &default_read);
-		
+
 		if (!nio_open(stream)) {
 			break;
 		}
@@ -123,7 +123,7 @@ void* server_listener(void* user) {
 	}
 
 	log_info("Connection closed\n");
-	
+
 	nio_free(stream);
 	exit(0);
 
@@ -191,6 +191,8 @@ int main(int argc, char* argv[]) {
 				printf(" * brod <uid> <msg>   Send message to all, except user\n");
 				printf(" * rand <cnt>         Write cnt random bytes into the server connection\n");
 				printf(" * stop               Stop the client\n");
+				printf(" * gets <key>         Get the value of a setting\n");
+				printf(" * sets <key> <val>   Set the value of a setting\n");
 			}
 
 			if (streq(buffer, "push")) {
@@ -240,7 +242,7 @@ int main(int argc, char* argv[]) {
 			if (streq(buffer, "quit")) {
 				nio_write8(&stream, U2R_QUIT);
 			}
-			
+
 			if (streq(buffer, "stop")) {
 				nio_drop(&stream);
 			}
@@ -295,6 +297,14 @@ int main(int argc, char* argv[]) {
 
 				}
 
+			}
+
+			if (streq(buffer, "gets")) {
+				printf("Not yet implemented!\n");
+			}
+
+			if (streq(buffer, "sets")) {
+				printf("Not yet implemented!\n");
 			}
 
 		}

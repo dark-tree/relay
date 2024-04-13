@@ -10,12 +10,11 @@ typedef struct {
 	uint64_t offset;
 } InputLine;
 
-/// Creates new empty line struct.
-/// This function should typically be used once
-/// before calling any other input function.
-/// Use input_free() to dealocate a line struct after use.
+/// Creates new empty line struct. This function should typically be used once
+/// before calling any other input function. Use input_free() to dealocate a line struct after use.
 void input_create(InputLine* line);
 
+///
 /// Free the line struct after use.
 void input_free(InputLine* line);
 

@@ -11,153 +11,16 @@
 #include <server/user.h>
 #include <server/group.h>
 #include <server/sequence.h>
-
-void dummy_handler(int signo, siginfo_t *info, void *context) {
-	// do nothing, we only care that the thread was interrupted
-}
-
-bool should_accept;
+#include <server/tcps.h>
+#include <server/store.h>
 
 // And here truth was made, and disjointed chaos of the threads
 // synchronized into one so that a singular state could emerge,
 // and God saw that it was good.
-sem_t truth_mutex;
+// sem_t truth_mutex;
 
-IdMap* users;
-SharedMutex user_mutex;
-IdSequence uid_sequence;
-atomic_int user_count;
-
-IdMap* groups;
-SharedMutex group_mutex;
-IdSequence gid_sequence;
-atomic_int group_count;
-
-void accept_handle(int sock, int conn);
-
-void* tcps_accept(void* user) {
-
-	int sockfd = (long) user;
-
-	struct sigaction action = {0};
-	action.sa_flags = 0;
-	action.sa_sigaction = dummy_handler;
-
-	// we need to handle the SIGUSR1 in this thread so that accept() returns EINTR
-	// Note: we can't use SIG_IGN here as that wouldn't interrupt the accept() call
-	// Note: we have to use sigaction() over signal(), as otherwise it doesn't work (idk why)
-	if (sigaction(SIGUSR1, &action, NULL) == -1) {
-		log_fatal("Failed to set a dummy handler for SIGUSR1 in accept thread!\n");
-		exit(-1);
-	}
-
-	while (true) {
-
-		struct sockaddr_in address;
-		int len = sizeof(address);
-
-		int connfd = accept(sockfd, (struct sockaddr*) &address, &len);
-
-		if (connfd == -1) {
-
-			const int err = errno;
-
-			if (err == EAGAIN || err == EWOULDBLOCK || err == ETIMEDOUT) {
-				log_debug("Call to accept() timed out\n");
-				continue;
-			}
-
-			if (err == EMFILE || err == ENFILE || err == ENOMEM || err == ENOBUFS || err == ENOSR) {
-				log_error("Failed to accept new connection, resources exhausted!\n");
-				continue;
-			}
-
-			if (err == EPERM) {
-				log_error("Failed to accept new connection, operation not permitted!\n");
-				continue;
-
-			}
-
-			if (err == EPROTO) {
-				log_warn("Failed to accept new connection, protocol error!\n");
-				continue;
-			}
-
-			// this is triggered from the main thread with the
-			// 'stop' command (it sends a SIGUSR1 signal to this
-			// thread using pthread_kill)
-			if (err == EINTR && !should_accept) {
-				break;
-			}
-
-			log_fatal("Unexpected error in accept thread: %s", strerror(err));
-			break;
-		}
-
-		accept_handle(sockfd, connfd);
-
-	}
-
-	// if we got here server exit must have been triggered, or error occured
-	log_info("Server shutting down...\n");
-
-	SHARED_LOCK(&user_mutex, {
-		IdMapIterator iter = idmap_iterator(users);
-
-		while (idmap_has(&iter)) {
-			nio_drop(&(((User*) idmap_next(&iter))->stream));
-		}
-	});
-
-	// spin lock!
-	while (user_count > 0) {
-		usleep(10000); // 10ms
-	}
-
-	close(sockfd);
-	exit(0);
-
-}
-
-pthread_t tcps_start(uint16_t port, uint16_t backlog, void (*accept_callback) (int sockfd, int connfd)) {
-
-	struct sockaddr_in address;
-	int sockfd = socket(AF_INET, SOCK_STREAM, 0);
-
-	if (sockfd == -1) {
-		log_fatal("Failed to open socket!\n");
-		exit(-1);
-	}
-
-	int enable = 1;
-	if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &enable, sizeof(int)) < 0) {
-		log_error("Failed to configure socket address!\n");
-	}
-
-	if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEPORT, &enable, sizeof(int)) < 0) {
-		log_error("Failed to configure socket port!\n");
-	}
-
-	address.sin_family = AF_INET;
-	address.sin_port = htons(port);
-	address.sin_addr.s_addr = htonl(INADDR_ANY);
-
-	if (bind(sockfd, (struct sockaddr*) &address, sizeof(address)) != 0) {
-		log_fatal("Failed to bind to port!\n");
-		exit(-1);
-	}
-
-	if (listen(sockfd, backlog) != 0) {
-		log_fatal("Failed to start listening on socket!\n");
-		exit(-1);
-	}
-
-	pthread_t thread;
-	pthread_create(&thread, NULL, tcps_accept, (void*) (long) sockfd);
-
-	return thread;
-
-}
+IdStore* users;
+IdStore* groups;
 
 void* user_thread(void* context) {
 
@@ -236,13 +99,8 @@ void* user_thread(void* context) {
 				continue;
 			}
 
-			const uint32_t gid = idseq_next(&gid_sequence);
-			Group* group = group_create(gid, user);
 
-			UNIQUE_LOCK(&group_mutex, {
-				idmap_put(groups, gid, group);
-				group_count ++;
-			});
+			Group* group = store_putgroup(groups, user);
 
 			user->role = ROLE_HOST;
 			user->group = group;
@@ -251,13 +109,13 @@ void* user_thread(void* context) {
 			SEMAPHORE_LOCK(&user->write_mutex, {
 				nio_write8(stream, R2U_MADE);
 				nio_write8(stream, FROM_MAKE | STAT_OK);
-				nio_write32(stream, gid);
+				nio_write32(stream, group->gid);
 
 				nio_write8(stream, R2U_STAT);
 				nio_write8(stream, ROLE_HOST);
 			});
 
-			log_info("User #%d created group #%d\n", user->uid, gid);
+			log_info("User #%d created group #%d\n", user->uid, group->gid);
 
 			continue;
 		}
@@ -277,10 +135,10 @@ void* user_thread(void* context) {
 			// and guarantees that the group will not be deleted mid-usage. We do not yet hold
 			// a reference to the group, so it can be deleted by the host if not for the cleanup thread
 			// requiring a unique lock on the same mutex to finish the removal process.
-			SHARED_LOCK(&group_mutex, {
+			SHARED_LOCK(&groups->mutex, {
 
 				const uint8_t status_closed = FROM_JOIN | STAT_ERROR_INVALID;
-				Group* const group = idmap_get(groups, gid);
+				Group* const group = idmap_get(groups->map, gid);
 
 				if (!group || group->close) {
 
@@ -380,7 +238,7 @@ void* user_thread(void* context) {
 			if (user_verify(user, ROLE_HOST | ROLE_MEMBER)) {
 
 				// packet was send while user was in invalid state
-				// we have to read the message bytes for the stream
+				// we have to read the message bytes from the stream
 				// to stay synchronized
 				nio_skip(stream, len);
 
@@ -388,9 +246,9 @@ void* user_thread(void* context) {
 			}
 
 			// TODO opti: potentially optimize user access
-			SHARED_LOCK(&user_mutex, {
+			SHARED_LOCK(&users->mutex, {
 
-				User* target = idmap_get(users, uid);
+				User* target = idmap_get(users->map, uid);
 
 				if (target && target->group == user->group) {
 
@@ -560,28 +418,40 @@ void* user_thread(void* context) {
 		user_quit(user);
 	}
 
-	UNIQUE_LOCK(&user_mutex, {
-		idmap_remove(users, user->uid);
-		user_count --;
-	});
-
+	store_remove(users, user->uid);
 	log_info("User #%d disconnected\n", user->uid);
 
 	user_free(user);
 }
 
-void accept_handle(int sock, int conn) {
+void accept_handle(int conn) {
 
-	int uid = idseq_next(&uid_sequence);
-	User* user = user_create(uid, conn);
-
-	UNIQUE_LOCK(&user_mutex, {
-		idmap_put(users, uid, user);
-		user_count ++;
-	});
+	User* user = store_putuser(users, conn);
 
 	pthread_t thread;
 	pthread_create(&thread, NULL, user_thread, user);
+}
+
+void cleanup_handle(int sock) {
+
+	SHARED_LOCK(&users->mutex, {
+		IdMapIterator iter = idmap_iterator(users->map);
+
+		while (idmap_has(&iter)) {
+			nio_drop(&(((User*) idmap_next(&iter))->stream));
+		}
+	});
+
+	// spin lock!
+	while (users->counter > 0) {
+		usleep(10000); // 10ms
+	}
+
+	close(sock);
+	store_free(users);
+	store_free(groups);
+	exit(0);
+
 }
 
 int main() {
@@ -593,21 +463,14 @@ int main() {
 		exit(-1);
 	}
 
-	should_accept = true;
-	user_count = 0;
-	group_count = 0;
+	users = store_create(IDSEQ_MONOTONIC);
+	groups = store_create(IDSEQ_MONOTONIC);
 
-	users = idmap_create();
-	groups = idmap_create();
+	TcpServer server;
+	server.accept_callback = accept_handle;
+	server.cleanup_callback = cleanup_handle;
 
-	mutex_init(&user_mutex);
-	mutex_init(&group_mutex);
-	sem_init(&truth_mutex, 0, 1);
-
-	idseq_begin(&uid_sequence, IDSEQ_MONOTONIC);
-	idseq_begin(&gid_sequence, IDSEQ_MONOTONIC);
-
-	pthread_t accept_thread = tcps_start(9686, 8, accept_handle);
+	tcps_start(&server, 9686, 8);
 
 	InputLine line;
 	line.line = NULL;
@@ -632,21 +495,20 @@ int main() {
 		}
 
 		if (streq(buffer, "stop")) {
-			should_accept = false;
-			pthread_kill(accept_thread, SIGUSR1);
+			tcps_stop(&server);
 		}
 
 		if (streq(buffer, "users")) {
 
-			if (user_count == 0) {
+			if (users->counter == 0) {
 				printf("There are currently no connected users.\n");
 				continue;
 			}
 
-			printf("List of all %d users:\n", user_count);
+			printf("List of all %d users:\n", users->counter);
 
-			SHARED_LOCK(&user_mutex, {
-				IdMapIterator iter = idmap_iterator(users);
+			SHARED_LOCK(&users->mutex, {
+				IdMapIterator iter = idmap_iterator(users->map);
 
 				while (idmap_has(&iter)) {
 					User* user = (User*) idmap_next(&iter);
@@ -671,15 +533,15 @@ int main() {
 
 		if (streq(buffer, "groups")) {
 
-			if (group_count == 0) {
+			if (groups->counter == 0) {
 				printf("There are currently no open groups.\n");
 				continue;
 			}
 
-			printf("List of all %d groups:\n", group_count);
+			printf("List of all %d groups:\n", groups->counter);
 
-			SHARED_LOCK(&group_mutex, {
-				IdMapIterator iter = idmap_iterator(groups);
+			SHARED_LOCK(&groups->mutex, {
+				IdMapIterator iter = idmap_iterator(groups->map);
 
 				while (idmap_has(&iter)) {
 					Group* group = (Group*) idmap_next(&iter);
@@ -694,9 +556,9 @@ int main() {
 			if (input_number(&line, &gid)) {
 				printf("List of members:\n");
 
-				SHARED_LOCK(&group_mutex, {
+				SHARED_LOCK(&groups->mutex, {
 
-					Group* group = idmap_get(groups, gid);
+					Group* group = idmap_get(groups->map, gid);
 
 					if (!group) {
 						printf("The group with the given GID does not exist!\n");

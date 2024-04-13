@@ -2,8 +2,11 @@
 #include "group.h"
 
 #include <server/user.h>
+#include <server/store.h>
 #include <common/const.h>
 #include <common/logger.h>
+
+extern IdStore* groups;
 
 Group* group_create(uint32_t gid, User* user) {
 	Group* group = malloc(sizeof(Group));
@@ -45,7 +48,6 @@ void group_free(Group* this) {
 	this->uid = 0;
 
 	free(this);
-
 }
 
 int group_find(Group* group, uint32_t uid) {
@@ -71,13 +73,10 @@ void* group_cleanup(void* this) {
 	// remove the group from the idmap first so that no pointer can
 	// point at deallocated memory. This lock is also important to the handling of
 	// the U2R_JOIN packet, and guarantees that the group will not be removed during usage.
-	UNIQUE_LOCK(&group_mutex, {
-		free(idmap_remove(groups, group->gid));
-		group_count --;
-	});
+	store_remove(groups, group->gid);
 
 	// now safely free the group
-	// TODO should we put group_free into group_mutex UNIQUE_LOCK?
+	// TODO should we put group_free into groups->mutex UNIQUE_LOCK?
 	group_free(group);
 
 	log_info("User #%d disbanded group #%d\n", uid, gid);
