@@ -8,6 +8,32 @@
 #include <common/util.h>
 
 // TODO move somewhere else
+const char* decode_setting(uint32_t key) {
+
+	if (key == SETK_INVALID) return "invalid";
+	if (key == SETK_GROUP_PASS) return "group.password";
+	if (key == SETK_GROUP_FLAGS) return "group.flags";
+	if (key == SETK_GROUP_MEMBERS) return "group.members";
+	if (key == SETK_GROUP_PAYLOAD) return "group.payload";
+
+	return "unknown";
+
+}
+
+// TODO move somewhere else
+int encode_setting(const char* key) {
+
+	if (streq(key, "invalid")) return SETK_INVALID;
+	if (streq(key, "group.password")) return SETK_GROUP_PASS;
+	if (streq(key, "group.flags")) return SETK_GROUP_FLAGS;
+	if (streq(key, "group.members")) return SETK_GROUP_MEMBERS;
+	if (streq(key, "group.payload")) return SETK_GROUP_PAYLOAD;
+
+	return SETK_INVALID;
+
+}
+
+// TODO move somewhere else
 const char* made_codestr(uint8_t code) {
 	if (code == 0x00) return "Created group #%d\n";
 	if (code == 0x10) return "Joined group #%d\n";
@@ -118,6 +144,13 @@ void* server_listener(void* user) {
 			uint32_t uid = nio_read32(stream);
 			log_info("User #%d left\n", uid);
 			continue;
+		}
+
+		if (id == R2U_VALS) {
+			uint32_t key = nio_read32(stream);
+			uint32_t val = nio_read32(stream);
+
+			log_info("Setting '%s' is set to '%d'\n", decode_setting(key), val);
 		}
 
 	}
@@ -300,11 +333,33 @@ int main(int argc, char* argv[]) {
 			}
 
 			if (streq(buffer, "gets")) {
-				printf("Not yet implemented!\n");
+
+				if (input_string(&line, buffer, 255)) {
+
+					uint32_t key = encode_setting(buffer);
+
+					nio_write8(&stream, U2R_GETS);
+					nio_write32(&stream, key);
+
+				}
+
 			}
 
 			if (streq(buffer, "sets")) {
-				printf("Not yet implemented!\n");
+				if (input_string(&line, buffer, 255)) {
+
+					uint32_t key = encode_setting(buffer);
+
+					long val;
+					if (input_number(&line, &val)) {
+
+						nio_write8(&stream, U2R_SETS);
+						nio_write32(&stream, key);
+						nio_write32(&stream, val);
+
+					}
+
+				}
 			}
 
 		}

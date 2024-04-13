@@ -24,6 +24,7 @@
 #define R2U_LEFT 0x14 // user left group (to host)
 #define R2U_STAT 0x15 //
 #define R2U_VALS 0x16 //
+//#define R2U_DROP    // gives a reason for a server disconnect, send just before closing the socket
 
 // Special IDs
 #define NULL_GROUP 0
@@ -40,10 +41,17 @@
 #define STAT_OK              0x00 // operation completed succesfully
 #define STAT_ERROR_INVALID   0x01 // no such group or the group is closing
 #define STAT_ERROR_PASSWORD  0x02 // invalid group password
-#define STAT_ERROR_FULL      0x03 // the group member count reached the group memebr limit
+#define STAT_ERROR_FULL      0x03 // the group member count reached the group member limit
 #define STAT_ERROR_LOCK      0x04 // the group is locked and can't be joined
 #define STAT_ERROR_SATURATED 0x05 // maximum number of concurent groups reached
 
 // R2U_MADE origin
 #define FROM_MAKE            0x00 //
 #define FROM_JOIN            0x10 //
+
+// Group flags
+#define FLAG_GROUP_LOCK      0b01
+#define FLAG_GROUP_NOSEND    0b02
+#define FLAG_GROUP_NOBROD    0b04
+#define FLAG_GROUP_NOP2P     0b08
+#define FLAG_GROUP_BINARY    0b10

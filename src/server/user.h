@@ -39,4 +39,6 @@ void user_kick(User* user, uint32_t uid);
 
 void user_quit(User* user);
 
-uint32_t* user_setting(User* user, uint32_t key, bool write);
+uint32_t* user_setting_get(User* user, uint32_t key, bool write);
+
+void user_setting_send(User* user, uint32_t key, uint32_t val);

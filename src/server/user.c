@@ -75,7 +75,7 @@ void user_quit(User* user) {
 	return;
 }
 
-uint32_t* user_setting(User* user, uint32_t key, bool write) {
+uint32_t* user_setting_get(User* user, uint32_t key, bool write) {
 
 	const uint8_t group_mask = (ROLE_HOST | (write ? 0 : ROLE_MEMBER));
 
@@ -111,6 +111,22 @@ uint32_t* user_setting(User* user, uint32_t key, bool write) {
 		return &user->group->payload_limit;
 	}
 
+	// if there is no setting with the requested key
+	// respond back with a invalid setting key
+	user_setting_send(user, SETK_INVALID, key);
+
 	return NULL;
 
+}
+
+void user_setting_send(User* user, uint32_t key, uint32_t val) {
+	SEMAPHORE_LOCK(&user->write_mutex, {
+		NioStream* stream = &user->stream;
+
+		NIO_CORK(stream, {
+			nio_write8(stream, R2U_VALS);
+			nio_write32(stream, key);
+			nio_write32(stream, val);
+		});
+	});
 }

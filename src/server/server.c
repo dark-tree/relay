@@ -14,11 +14,6 @@
 #include <server/tcps.h>
 #include <server/store.h>
 
-// And here truth was made, and disjointed chaos of the threads
-// synchronized into one so that a singular state could emerge,
-// and God saw that it was good.
-// sem_t truth_mutex;
-
 IdStore* users;
 IdStore* groups;
 
@@ -123,9 +118,9 @@ void* user_thread(void* context) {
 		if (id == U2R_JOIN) {
 
 			const uint32_t gid = nio_read32(stream);
-			const uint32_t pass = nio_read32(stream);
+			const uint32_t password = nio_read32(stream);
 
-			log_debug("Received from user #%d: U2R_JOIN {gid=%u, pass=%u}\n", user->uid, gid, pass);
+			log_debug("Received from user #%d: U2R_JOIN {gid=%u, pass=%u}\n", user->uid, gid, password);
 
 			if (user_verify(user, ROLE_CONNECTED)) {
 				continue;
@@ -157,6 +152,26 @@ void* user_thread(void* context) {
 						// verify if the group is really not closing
 						// and if the host is still in it
 						if (group->host && !group->close) {
+
+							if (group->password != password) {
+								SEMAPHORE_LOCK(&user->write_mutex, {
+									nio_write8(stream, R2U_MADE);
+									nio_write8(stream, FROM_JOIN | STAT_ERROR_PASSWORD);
+									nio_write32(stream, NULL_GROUP);
+								});
+
+								goto inner_fail;
+							}
+
+							if (group->flags & FLAG_GROUP_LOCK) {
+								SEMAPHORE_LOCK(&user->write_mutex, {
+									nio_write8(stream, R2U_MADE);
+									nio_write8(stream, FROM_JOIN | STAT_ERROR_LOCK);
+									nio_write32(stream, NULL_GROUP);
+								});
+
+								goto inner_fail;
+							}
 
 							// add new member
 							idvec_put(&group->members, user);
@@ -192,6 +207,8 @@ void* user_thread(void* context) {
 							});
 
 						}
+
+						inner_fail:
 
 					});
 
@@ -365,20 +382,16 @@ void* user_thread(void* context) {
 
 		if (id == U2R_SETS) {
 
-			uint8_t notify = nio_read8(stream);
 			uint32_t key = nio_read32(stream);
-			uint32_t var = nio_read32(stream);
+			uint32_t val = nio_read32(stream);
 
-			uint32_t* settings = user_setting(user, key, true);
+			log_debug("Received from user #%d: U2R_SETS {key=%u, val=%u}\n", user->uid, key, val);
 
-			if (!settings) {
+			uint32_t* setting = user_setting_get(user, key, true);
 
-				SEMAPHORE_LOCK(&user->write_mutex, {
-					nio_write8(stream, R2U_VALS);
-					nio_write32(stream, SETK_INVALID);
-					nio_write32(stream, key);
-				});
-
+			if (setting) {
+				*setting = val;
+				user_setting_send(user, key, *setting);
 			}
 
 			continue;
@@ -388,25 +401,13 @@ void* user_thread(void* context) {
 
 			uint32_t key = nio_read32(stream);
 
-			uint32_t* setting = user_setting(user, key, false);
+			log_debug("Received from user #%d: U2R_GETS {key=%u}\n", user->uid, key);
 
-			SEMAPHORE_LOCK(&user->write_mutex, {
-				NIO_CORK(stream, {
-					nio_write8(stream, R2U_VALS);
+			uint32_t* setting = user_setting_get(user, key, false);
 
-					if (setting) {
-						nio_write32(stream, key);
-						nio_write32(stream, *setting);
-					} else {
-
-						// if there is no setting with the requested key
-						// respond back with a invalid setting key
-						nio_write32(stream, SETK_INVALID);
-						nio_write32(stream, key);
-
-					}
-				});
-			});
+			if (setting) {
+				user_setting_send(user, key, *setting);
+			}
 
 			continue;
 		}
@@ -519,7 +520,7 @@ int main() {
 						User* user = (User*) idmap_next(&iter);
 						Group* group = user->group;
 
-						if (user->role == ROLE_CONNECTED) {
+						if (user->role == ROLE_CONNECTED || (group == NULL)) {
 							printf(" * user #%d connected\n", user->uid);
 							continue;
 						}
