@@ -507,27 +507,35 @@ int main() {
 
 			printf("List of all %d users:\n", users->counter);
 
-			SHARED_LOCK(&users->mutex, {
-				IdMapIterator iter = idmap_iterator(users->map);
+			// we lock the groups mutex as well here
+			// so that we can guarantee that once we copy a group pointer from a user it
+			// won't become invalid
+			SHARED_LOCK(&groups->mutex, {
+				SHARED_LOCK(&users->mutex, {
 
-				while (idmap_has(&iter)) {
-					User* user = (User*) idmap_next(&iter);
+					IdMapIterator iter = idmap_iterator(users->map);
 
-					if (user->role == ROLE_CONNECTED) {
-						printf(" * user #%d connected\n", user->uid);
-						continue;
+					while (idmap_has(&iter)) {
+						User* user = (User*) idmap_next(&iter);
+						Group* group = user->group;
+
+						if (user->role == ROLE_CONNECTED) {
+							printf(" * user #%d connected\n", user->uid);
+							continue;
+						}
+
+						if (user->role == ROLE_MEMBER) {
+							printf(" * user #%d member of group #%d\n", user->uid, group->gid);
+							continue;
+						}
+
+						if (user->role == ROLE_HOST) {
+							printf(" * user #%d host of group #%d\n", user->uid, group->gid);
+							continue;
+						}
 					}
 
-					if (user->role == ROLE_MEMBER) {
-						printf(" * user #%d member of group #%d\n", user->uid, user->group->gid); // TODO unsafe
-						continue;
-					}
-
-					if (user->role == ROLE_HOST) {
-						printf(" * user #%d host of group #%d\n", user->uid, user->group->gid); // TODO unsafe
-						continue;
-					}
-				}
+				});
 			});
 		}
 
@@ -564,7 +572,7 @@ int main() {
 						printf("The group with the given GID does not exist!\n");
 					} else {
 
-						SEMAPHORE_LOCK(&group->master_mutex, { // TODO unsafe
+						SEMAPHORE_LOCK(&group->master_mutex, {
 
 							IDVEC_FOREACH(User*, user, group->members) {
 								printf(" * user #%d\n", user->uid);
