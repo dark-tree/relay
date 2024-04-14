@@ -14,9 +14,9 @@ typedef struct Group_tag {
 
 	// settings
 	uint32_t password;      // group join password
-	uint32_t flags;         // TODO a collection of group flags
-	uint32_t member_limit;  // TODO maximum number of group members
-	uint32_t payload_limit; // TODO maximum packet size in this group
+	uint32_t flags;         // a collection of group flags
+	uint32_t member_limit;  // maximum number of group members
+	uint32_t payload_limit; // maximum packet size in this group
 
 	volatile bool close;
 	atomic_int refcnt;

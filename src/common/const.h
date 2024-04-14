@@ -2,28 +2,28 @@
 #pragma once
 
 // the port on which URP operates
-#define URP_PORT 9686
-#define URP_VERSION 1
+#define URP_PORT     9686
+#define URP_VERSION  1
 #define URP_REVISION 0
 
 // user-to-relay packets
-#define U2R_MAKE 0x00 // create new user group
-#define U2R_JOIN 0x01 // join a user group
-#define U2R_QUIT 0x02 // exit a user group
-#define U2R_BROD 0x03 // broadcast a message in a user group
-#define U2R_SEND 0x04 // send a message to a specific user of a user group
-#define U2R_GETS 0x05 // data read
-#define U2R_SETS 0x06 // data write
-#define U2R_KICK 0x07 //
+#define U2R_MAKE             0x00 // create user group
+#define U2R_JOIN             0x01 // join given user group
+#define U2R_QUIT             0x02 // leave user group
+#define U2R_BROD             0x03 // broadcast message too all but the specified user in a your group
+#define U2R_SEND             0x04 // send message to the specified user in a your group
+#define U2R_GETS             0x05 // get setting value of the given key
+#define U2R_SETS             0x06 // set setting value of the given key
+#define U2R_KICK             0x07 // kick user from the group, can be send only by the host
 
 // relay-to-user packets
-#define R2U_WELC 0x10 // send to newly joined users
-#define R2U_TEXT 0x11 // message received
-#define R2U_MADE 0x12 // new user group made
-#define R2U_JOIN 0x13 // user joined group
-#define R2U_LEFT 0x14 // user left group (to host)
-#define R2U_STAT 0x15 //
-#define R2U_VALS 0x16 //
+#define R2U_WELC             0x10 // the first packet send to newly connected users
+#define R2U_TEXT             0x11 // delivers a message to the recipiant
+#define R2U_MADE             0x12 // a response to the U2R_MAKE/U2R_JOIN packets
+#define R2U_JOIN             0x13 // send to the host when a new users joins the group
+#define R2U_LEFT             0x14 // send to the host when a user leaves the group
+#define R2U_STAT             0x15 // send to the user when their role changes or when they issue a command while in the wrong role
+#define R2U_VALS             0x16 // a response to the U2R_GETS/U2R_SETS packets
 //#define R2U_DROP    // gives a reason for a server disconnect, send just before closing the socket
 
 // Special IDs
@@ -31,9 +31,9 @@
 #define NULL_USER 0
 
 // Setting keys
-#define SETK_INVALID         0x00
-#define SETK_GROUP_PASS      0x01 //
-#define SETK_GROUP_FLAGS     0x02 //
+#define SETK_INVALID         0x00 // returned with the value of the key, when an invalid key is send
+#define SETK_GROUP_PASS      0x01 // group password
+#define SETK_GROUP_FLAGS     0x02 // group flags, see FLAG_GROUP_* defines below
 #define SETK_GROUP_MEMBERS   0x03 // maximum number of group members
 #define SETK_GROUP_PAYLOAD   0x04 // maximum size of payload in U2R_SEND or U2R_BROD
 
@@ -50,8 +50,9 @@
 #define FROM_JOIN            0x10 //
 
 // Group flags
-#define FLAG_GROUP_LOCK      0b01
-#define FLAG_GROUP_NOSEND    0b02
-#define FLAG_GROUP_NOBROD    0b04
-#define FLAG_GROUP_NOP2P     0b08
-#define FLAG_GROUP_BINARY    0b10
+#define FLAG_GROUP_LOCK      0x01 // enabling this group flag blocks the ability of new members to join
+#define FLAG_GROUP_NOSEND    0x02 // blocks the ability of all but the host to issue the U2R_SEND command
+#define FLAG_GROUP_NOBROD    0x04 // blocks the ability of all but the host to issue the U2R_BROD command
+#define FLAG_GROUP_NOP2P     0x08 // when enabled the only valid target for U2R_SEND becomes the host
+#define FLAG_GROUP_BINARY    0x10 // indicates for the client that the group uses binary communication
+#define FLAG_GROUP_ENCRYPTED 0x20 // indicates for the client that the group uses encryption of some sort

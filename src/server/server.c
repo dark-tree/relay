@@ -173,6 +173,21 @@ void* user_thread(void* context) {
 								goto inner_fail;
 							}
 
+							// this check of member count vs. member limit looks
+							// unsafe (we first check member count and only after that
+							// (non atomically) increment member count) but in actuallity
+							// this whole block is protected by the group's master_mutex
+							// so it is synchronized and safe as-is
+							if (group->refcnt >= group->member_limit) {
+								SEMAPHORE_LOCK(&user->write_mutex, {
+									nio_write8(stream, R2U_MADE);
+									nio_write8(stream, FROM_JOIN | STAT_ERROR_FULL);
+									nio_write32(stream, NULL_GROUP);
+								});
+
+								goto inner_fail;
+							}
+
 							// add new member
 							idvec_put(&group->members, user);
 
@@ -262,12 +277,32 @@ void* user_thread(void* context) {
 				continue;
 			}
 
+			Group* group = user->group;
+			uint32_t host = group->uid;
+			bool length = (len > group->payload_limit);
+
+			// host can do everything so we only check for members
+			if ((host != user->uid) || length) {
+
+				uint32_t flags = group->flags;
+
+				// U2R_SEND packets are blocked OR user-to-user U2R_SEND packets are blocked
+				if (length || (flags & FLAG_GROUP_NOSEND) || ((flags & FLAG_GROUP_NOP2P) && (uid != host))) {
+
+					// as before we need to read the message anyway
+					nio_skip(stream, len);
+
+					continue;
+				}
+
+			}
+
 			// TODO opti: potentially optimize user access
 			SHARED_LOCK(&users->mutex, {
 
 				User* target = idmap_get(users->map, uid);
 
-				if (target && target->group == user->group) {
+				if (target && target->group == group) {
 
 					// TODO opti: read first block before we lock target
 					SEMAPHORE_LOCK(&target->write_mutex, {
@@ -316,22 +351,27 @@ void* user_thread(void* context) {
 
 			log_debug("Received from user #%d: U2R_BROD {uid=%u, len=%u}\n", user->uid, uid, len);
 
-			// packet send while user was in invalid state
-			// we have to read the message bytes for the stream
-			// to stay synchronized
-			if (user->role == ROLE_CONNECTED) {
+			if (user_verify(user, ROLE_HOST | ROLE_MEMBER)) {
 
+				// packet was send while user was in invalid state
+				// we have to read the message bytes from the stream
+				// to stay synchronized
 				nio_skip(stream, len);
-
-				SEMAPHORE_LOCK(&user->write_mutex, {
-					nio_write8(stream, R2U_STAT);
-					nio_write8(stream, user->role);
-				});
 
 				continue;
 			}
 
 			Group* group = user->group;
+			bool length = (len > group->payload_limit);
+
+			// host can do everything so we only check for members
+			if (length || (group->uid != user->uid) && (group->flags & FLAG_GROUP_NOBROD)) {
+
+				// as before we need to read the message anyway
+				nio_skip(stream, len);
+
+				continue;
+			}
 
 			// wait for master group lock as
 			// we will lock more than one user lock
