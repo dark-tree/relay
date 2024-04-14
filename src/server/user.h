@@ -33,12 +33,22 @@ User* user_create(uint32_t uid, int connfd);
 /// used structures. The object is no longer usable after this call.
 void user_free(User* user);
 
+/// Verifies if a user has any of the specificed roles
+/// otherwise will return 1 and a status reminder to the user
 int user_verify(User* user, uint8_t role);
 
+///
+///
 void user_kick(User* user, uint32_t uid);
 
+///
+///
 void user_quit(User* user);
 
+/// Gets a pointer to a setting given a key and check for all
+/// required permissions given if a read-only or read-write access is required
 uint32_t* user_setting_get(User* user, uint32_t key, bool write);
 
+/// Sends key-value update to the
+/// given user as the R2U_VALS
 void user_setting_send(User* user, uint32_t key, uint32_t val);
