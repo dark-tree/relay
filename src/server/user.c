@@ -44,8 +44,6 @@ int user_verify(User* user, uint8_t role) {
 void user_kick(User* user, uint32_t uid) {
 	Group* group = user->group;
 
-	const uint32_t gid = user->group->gid;
-
 	if (group->uid == uid) {
 		group_disband(group);
 		return;
@@ -57,7 +55,6 @@ void user_kick(User* user, uint32_t uid) {
 
 	return;
 }
-
 
 void user_quit(User* user) {
 	Group* group = user->group;

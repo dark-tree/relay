@@ -37,12 +37,12 @@ void user_free(User* user);
 /// otherwise will return 1 and a status reminder to the user
 int user_verify(User* user, uint8_t role);
 
-///
-///
+/// Handles the U2R_KICK packet, must be called 
+/// from the thread of the user that send the packet.
 void user_kick(User* user, uint32_t uid);
 
-///
-///
+/// Handles the U2R_QUIT packet, must be called 
+/// from the thread of the user that send the packet.
 void user_quit(User* user);
 
 /// Gets a pointer to a setting given a key and check for all

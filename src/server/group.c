@@ -76,7 +76,6 @@ void* group_cleanup(void* this) {
 	store_remove(groups, group->gid);
 
 	// now safely free the group
-	// TODO should we put group_free into groups->mutex UNIQUE_LOCK?
 	group_free(group);
 
 	log_info("User #%d disbanded group #%d\n", uid, gid);
@@ -156,7 +155,9 @@ void group_disband(Group* group) {
 
 	// start group closing, upon noticing the close
 	// flag users will start removing themselves from the group
-	group->close = true;
+	SEMAPHORE_LOCK(&group->master_mutex, {
+		group->close = true;
+	});
 
 	// remove host from the group
 	group_exit(group, user);

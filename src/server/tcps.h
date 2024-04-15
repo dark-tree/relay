@@ -17,6 +17,6 @@ typedef struct TcpServer_tag {
 /// connection when that happens a callback is triggered, the server can be stopped with tcps_stop
 void tcps_start(TcpServer* server, uint16_t port, uint16_t backlog);
 
-/// Sends a stop signal to the server thread and once it stopes
-/// invokes the cleanup thread
+/// Sends a stop signal to the server thread and once it stops invokes the cleanup callback.
+/// That callback should eventually call close() on the given socket handle
 void tcps_stop(TcpServer* server);

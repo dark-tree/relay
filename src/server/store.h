@@ -22,16 +22,16 @@ typedef struct IdStore_tag {
 /// it needs to be later freed with store_free
 IdStore* store_create(IdSeqMode mode);
 
-///
-///
+/// Frees memory alloced for the synchronized storage and any internally
+/// used structures. The object is no longer usable after this call.
 void store_free(IdStore* store);
 
-/// Puts a new instance of a user into the synchronized storage
-/// refere to the user_create function
+/// Creates a new instance of a user and emplaces it into the
+/// synchronized storage. Refere to the user_create function
 struct User_tag* store_putuser(IdStore* store, int connfd);
 
-/// Puts a new instance of a group into the synchronized storage
-/// refere to the group_create function
+/// Creates a new instance of a group and emplaces it into the
+/// synchronized storage. Refere to the group_create function
 struct Group_tag* store_putgroup(IdStore* store, struct User_tag* user);
 
 /// Removes a user or group object of the given ID

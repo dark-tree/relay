@@ -43,7 +43,7 @@ void* user_thread(void* context) {
 	struct timeval default_read;
 
 	util_mstime(&initial_read, 50);
-	util_mstime(&default_read, 100);
+	util_mstime(&default_read, 200);
 
 	while (nio_open(stream)) {
 
@@ -100,7 +100,10 @@ void* user_thread(void* context) {
 			user->role = ROLE_HOST;
 			user->group = group;
 
-			// TODO consider the use of this mutex
+			// a race condition in access to the write socket
+			// here is extremally unlikely, but not impossible
+			// for example if a new user joins before the R2U_MAKE
+			// packet is send to host
 			SEMAPHORE_LOCK(&user->write_mutex, {
 				nio_write8(stream, R2U_MADE);
 				nio_write8(stream, FROM_MAKE | STAT_OK);
