@@ -307,7 +307,9 @@ void* user_thread(void* context) {
 
 				if (target && target->group == group) {
 
-					// TODO opti: read first block before we lock target
+					NioBlock block = nio_block(stream, len);
+					nio_readbuf(stream, &block);
+
 					SEMAPHORE_LOCK(&target->write_mutex, {
 
 						NIO_CORK(&target->stream, {
@@ -317,7 +319,7 @@ void* user_thread(void* context) {
 							nio_write32(&target->stream, user->uid);
 							nio_write32(&target->stream, len);
 
-							NioBlock block = nio_block(stream, len);
+							nio_writebuf(&target->stream, &block);
 
 							while (block.remaining) {
 
@@ -382,6 +384,7 @@ void* user_thread(void* context) {
 			SEMAPHORE_LOCK(&group->master_mutex, {
 
 				NioBlock block = nio_block(stream, len);
+				nio_readbuf(stream, &block);
 
 				// lock targets
 				IDVEC_FOREACH(User*, target, group->members) {
@@ -393,6 +396,12 @@ void* user_thread(void* context) {
 						nio_write8(&target->stream, R2U_TEXT);
 						nio_write32(&target->stream, user->uid);
 						nio_write32(&target->stream, len);
+					}
+				}
+				
+				IDVEC_FOREACH(User*, initial, group->members) {
+					if (initial->uid != uid) {
+						nio_writebuf(&initial->stream, &block);
 					}
 				}
 

@@ -2,7 +2,7 @@
 #include "mutex.h"
 
 void mutex_init(SharedMutex* mutex) {
-	sem_init(&mutex->shared, 0, 1);
+	sem_init(&mutex->shared, 0, 1); // TODO: replace with atomic int
 	sem_init(&mutex->unique, 0, 1);
 	sem_init(&mutex->common, 0, 1);
 	mutex->readers = 0;
