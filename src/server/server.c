@@ -13,6 +13,7 @@
 #include <server/sequence.h>
 #include <server/tcps.h>
 #include <server/store.h>
+#include <server/config.h>
 
 IdStore* users;
 IdStore* groups;
@@ -22,9 +23,9 @@ void* user_thread(void* context) {
 	User * const user = (User*) context;
 	NioStream* stream = &user->stream;
 
-	log_info("User #%d connected\n", user->uid);
-
 	uint8_t brand[64] = "My Little Relay";
+
+	log_info("User #%d connected\n", user->uid);
 
 	NIO_CORK(stream, {
 		// send the welcome packet
@@ -477,7 +478,14 @@ void* user_thread(void* context) {
 	user_free(user);
 }
 
-void accept_handle(int conn) {
+void accept_handle(int conn, void* userdata) {
+
+	Config* cfg = userdata;
+	
+	if (users->counter >= cfg->users) {
+		close(conn);
+		return;
+	}
 
 	User* user = store_putuser(users, conn);
 
@@ -485,13 +493,14 @@ void accept_handle(int conn) {
 	pthread_create(&thread, NULL, user_thread, user);
 }
 
-void cleanup_handle(int sock) {
+void cleanup_handle(int sock, void* userdata) {
 
 	SHARED_LOCK(&users->mutex, {
 		IdMapIterator iter = idmap_iterator(users->map);
 
 		while (idmap_has(&iter)) {
-			nio_drop(&(((User*) idmap_next(&iter))->stream));
+			User* user = idmap_next(&iter);
+			nio_drop(&user->stream);
 		}
 	});
 
@@ -509,6 +518,14 @@ void cleanup_handle(int sock) {
 
 int main() {
 
+	Config cfg;
+
+	config_default(&cfg);
+	config_load(&cfg, "server.cfg");
+	
+	// set logger level
+	log_setlv(cfg.level);
+
 	// we need to block it so that write() doesn't trigger signals on error
 	// as that would make it harder for use to detect errors
 	if (signal(SIGPIPE, SIG_IGN) == SIG_ERR) {
@@ -516,14 +533,14 @@ int main() {
 		exit(-1);
 	}
 
-	users = store_create(IDSEQ_MONOTONIC);
-	groups = store_create(IDSEQ_MONOTONIC);
+	users = store_create(cfg.uids);
+	groups = store_create(cfg.gids);
 
 	TcpServer server;
 	server.accept_callback = accept_handle;
 	server.cleanup_callback = cleanup_handle;
 
-	tcps_start(&server, 9686, 8);
+	tcps_start(&server, cfg.port, 8, &cfg);
 
 	InputLine line;
 	line.line = NULL;

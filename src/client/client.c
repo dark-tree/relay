@@ -185,7 +185,7 @@ int main(int argc, char* argv[]) {
 	}
 
 	address.sin_family = AF_INET;
-	address.sin_port = htons(URP_PORT);
+	address.sin_port = htons(9686);
 	memcpy(&address.sin_addr, host->h_addr_list[0], host->h_length);
 
 	if (connect(sockfd, (struct sockaddr*) &address, sizeof(address)) != 0) {

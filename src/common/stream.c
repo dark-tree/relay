@@ -3,6 +3,7 @@
 
 #include <common/logger.h>
 #include <common/util.h>
+#include <common/const.h>
 
 void nio_create(NioStream* stream, int connfd, uint32_t length) {
 	stream->connfd = connfd;

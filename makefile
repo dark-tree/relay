@@ -1,6 +1,6 @@
 
 COMMON_DEPS := build/common/logger.o build/common/map.o build/common/set.o build/common/vec.o build/common/stream.o build/common/input.o build/common/util.o
-SERVER_DEPS := build/server/group.o build/server/mutex.o build/server/sequence.o build/server/server.o build/server/user.o build/server/tcps.o build/server/store.o
+SERVER_DEPS := build/server/group.o build/server/mutex.o build/server/sequence.o build/server/server.o build/server/user.o build/server/tcps.o build/server/store.o build/server/config.o
 CLIENT_DEPS := build/client/client.o
 
 .PHONY: all
@@ -34,6 +34,7 @@ build/server/tcps.o: src/server/tcps.c
 build/server/server.o: src/server/server.c
 build/server/user.o: src/server/user.c
 build/server/store.o: src/server/store.c
+build/server/config.o: src/server/config.c
 build/client/client.o: src/client/client.c
 
 $(COMMON_DEPS) $(SERVER_DEPS) $(CLIENT_DEPS):

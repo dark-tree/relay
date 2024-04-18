@@ -21,3 +21,5 @@
 #include <sys/socket.h>
 #include <netdb.h>
 #include <signal.h>
+
+#define streq(a, b) (strcmp(a, b) == 0)

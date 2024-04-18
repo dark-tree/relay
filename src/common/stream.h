@@ -19,6 +19,8 @@ typedef struct {
 /// the length parameter controls the size of the transit buffer (the buffer used by NioBlock).
 void nio_create(NioStream* stream, int connfd, uint32_t length);
 
+// Moves the stream into a 'dropped' state, while the connection is still no closed, all furture
+// reads will return 0s and writes will do nothing. nio_open() will return false after this call
 void nio_drop(NioStream* stream);
 
 /// Frees the internal structures and cleanly closes the connection,

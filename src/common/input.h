@@ -2,8 +2,6 @@
 #pragma once
 #include "external.h"
 
-#define streq(a, b) (strcmp(a, b) == 0)
-
 typedef struct {
 	char* line;
 	uint64_t length;

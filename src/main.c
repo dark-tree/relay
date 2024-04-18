@@ -23,7 +23,6 @@ int main() {
 
 	srand(time(NULL) + 42);
 
-
 	User* user = user_create(1, 42);
 	Group* group = group_create(2, 1);
 

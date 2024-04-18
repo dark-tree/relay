@@ -2,7 +2,6 @@
 #pragma once
 
 // the port on which URP operates
-#define URP_PORT     9686
 #define URP_VERSION  1
 #define URP_REVISION 0
 
@@ -24,7 +23,7 @@
 #define R2U_LEFT             0x14 // send to the host when a user leaves the group
 #define R2U_STAT             0x15 // send to the user when their role changes or when they issue a command while in the wrong role
 #define R2U_VALS             0x16 // a response to the U2R_GETS/U2R_SETS packets
-//#define R2U_DROP    // gives a reason for a server disconnect, send just before closing the socket
+//#define R2U_DROP           0x17 // gives a reason for a server disconnect, send just before closing the socket
 
 // Special IDs
 #define NULL_GROUP 0

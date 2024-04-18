@@ -66,17 +66,17 @@ void* tcps_accept(void* args) {
 			break;
 		}
 
-		server->accept_callback(connfd);
+		server->accept_callback(connfd, server->userdata);
 
 	}
 
 	// if we got here server exit must have been triggered, or error occured
 	log_info("Server shutting down...\n");
-	server->cleanup_callback(server->sockfd);
+	server->cleanup_callback(server->sockfd, server->userdata);
 
 }
 
-void tcps_start(TcpServer* server, uint16_t port, uint16_t backlog) {
+void tcps_start(TcpServer* server, uint16_t port, uint16_t backlog, void* userdata) {
 
 	struct sockaddr_in address;
 	int sockfd = socket(AF_INET, SOCK_STREAM, 0);
@@ -111,6 +111,7 @@ void tcps_start(TcpServer* server, uint16_t port, uint16_t backlog) {
 
 	server->sockfd = sockfd;
 	server->shutdown = false;
+	server->userdata = userdata;
 
 	// start the server thread, it will lisiten for incoming
 	// connections and call the configured callbacks

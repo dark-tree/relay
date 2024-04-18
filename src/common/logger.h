@@ -14,11 +14,11 @@ void log_setlv(uint16_t bitset);
 /// This function should not be used manually.
 bool log_chklv(uint16_t flag);
 
-#define LOG_FLAG_DEBUG 0x1
-#define LOG_FLAG_INFO  0x2
-#define LOG_FLAG_WARN  0x4
-#define LOG_FLAG_ERROR 0x8
-#define LOG_FLAG_FATAL 0xF
+#define LOG_FLAG_DEBUG 0x01
+#define LOG_FLAG_INFO  0x02
+#define LOG_FLAG_WARN  0x04
+#define LOG_FLAG_ERROR 0x08
+#define LOG_FLAG_FATAL 0x10
 
 // macros for logging using the same syntax that printf uses
 #define log_debug(...) if (log_chklv(LOG_FLAG_DEBUG)) { log_header("DEBUG"); printf(__VA_ARGS__); }
