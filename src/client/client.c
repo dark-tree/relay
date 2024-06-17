@@ -6,7 +6,6 @@
 #include <common/input.h>
 #include <common/logger.h>
 #include <common/util.h>
-#include <shared/shared.h>
 
 // TODO move somewhere else
 const char* decode_setting(uint32_t key) {

@@ -30,18 +30,10 @@ set(COMMON_SOURCES
 	src/common/util.c
 )
 
-set(SHARED_SOURCE
-	src/shared/shared.c
-)
-
 add_library(common STATIC ${COMMON_SOURCES})
-
-add_library(urpc SHARED ${SHARED_SOURCE})
-target_link_libraries(urpc PRIVATE common)
 
 add_executable(server ${SERVER_SOURCES})
 target_link_libraries(server PRIVATE common)
 
 add_executable(client ${CLIENT_SOURCES})
 target_link_libraries(client PRIVATE common)
-target_link_libraries(client PRIVATE urpc)
