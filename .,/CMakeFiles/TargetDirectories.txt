@@ -1,4 +1,0 @@
-/home/magistermaks/Documents/Dev/urp-git/.,/CMakeFiles/server.dir
-/home/magistermaks/Documents/Dev/urp-git/.,/CMakeFiles/client.dir
-/home/magistermaks/Documents/Dev/urp-git/.,/CMakeFiles/edit_cache.dir
-/home/magistermaks/Documents/Dev/urp-git/.,/CMakeFiles/rebuild_cache.dir
