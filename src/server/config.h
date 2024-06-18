@@ -7,16 +7,19 @@
 typedef struct Config_tag {
 
 	FILE* fd;
-	
-	// int options
+
+	// generic options
+	char brand[64];
 	uint32_t users;
-	uint32_t port;
 	uint32_t level;
 	IdSeqMode uids;
 	IdSeqMode gids;
-	
-	// string options
-	char brand[64];
+
+	// urp server options
+	uint32_t urp_port;
+
+	// websocket options
+	uint32_t ws_port;
 
 } Config;
 

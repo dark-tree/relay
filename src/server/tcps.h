@@ -2,15 +2,18 @@
 #pragma once
 #include "external.h"
 
+#include <common/stream.h>
+
 typedef struct TcpServer_tag {
 
 	bool shutdown;
 	pthread_t thread;
 	int sockfd;
 	void* userdata;
+	NioFunctor functor;
 
-	void (*accept_callback) (int connfd, void* userdata);
-	void (*cleanup_callback) (int sockfd, void* userdata);
+	void (*accept_callback) (int connfd, struct TcpServer_tag* server);
+	void (*cleanup_callback) (int sockfd, struct TcpServer_tag* server);
 
 } TcpServer;
 

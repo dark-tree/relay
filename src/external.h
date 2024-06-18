@@ -22,4 +22,8 @@
 #include <netdb.h>
 #include <signal.h>
 
+// OpenSSL
+#include <openssl/sha.h>
+#include <openssl/evp.h>
+
 #define streq(a, b) (strcmp(a, b) == 0)

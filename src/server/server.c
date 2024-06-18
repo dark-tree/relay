@@ -14,6 +14,7 @@
 #include <server/tcps.h>
 #include <server/store.h>
 #include <server/config.h>
+#include <server/servers.h>
 
 IdStore* users;
 IdStore* groups;
@@ -23,6 +24,7 @@ void* user_thread(void* context) {
 	User * const user = (User*) context;
 	NioStream* stream = &user->stream;
 
+	// FIXME
 	uint8_t brand[64] = "My Little Relay";
 
 	log_info("User #%d connected\n", user->uid);
@@ -105,7 +107,7 @@ void* user_thread(void* context) {
 			// here is extremally unlikely, but not impossible
 			// for example if a new user joins before the R2U_MAKE
 			// packet is send to host
-			SEMAPHORE_LOCK(&user->write_mutex, {
+			WRITE_LOCK(user, {
 				nio_write8(stream, R2U_MADE);
 				nio_write8(stream, FROM_MAKE | STAT_OK);
 				nio_write32(stream, group->gid);
@@ -141,7 +143,7 @@ void* user_thread(void* context) {
 
 				if (!group || group->close) {
 
-					SEMAPHORE_LOCK(&user->write_mutex, {
+					WRITE_LOCK(user, {
 						nio_write8(stream, R2U_MADE);
 						nio_write8(stream, status_closed);
 						nio_write32(stream, NULL_GROUP);
@@ -158,7 +160,7 @@ void* user_thread(void* context) {
 						if (group->host && !group->close) {
 
 							if (group->password != password) {
-								SEMAPHORE_LOCK(&user->write_mutex, {
+								WRITE_LOCK(user, {
 									nio_write8(stream, R2U_MADE);
 									nio_write8(stream, FROM_JOIN | STAT_ERROR_PASSWORD);
 									nio_write32(stream, NULL_GROUP);
@@ -168,7 +170,7 @@ void* user_thread(void* context) {
 							}
 
 							if (group->flags & FLAG_GROUP_LOCK) {
-								SEMAPHORE_LOCK(&user->write_mutex, {
+								WRITE_LOCK(user, {
 									nio_write8(stream, R2U_MADE);
 									nio_write8(stream, FROM_JOIN | STAT_ERROR_LOCK);
 									nio_write32(stream, NULL_GROUP);
@@ -183,7 +185,7 @@ void* user_thread(void* context) {
 							// this whole block is protected by the group's master_mutex
 							// so it is synchronized and safe as-is
 							if (group->refcnt >= group->member_limit) {
-								SEMAPHORE_LOCK(&user->write_mutex, {
+								WRITE_LOCK(user, {
 									nio_write8(stream, R2U_MADE);
 									nio_write8(stream, FROM_JOIN | STAT_ERROR_FULL);
 									nio_write32(stream, NULL_GROUP);
@@ -200,13 +202,13 @@ void* user_thread(void* context) {
 							user->group = group;
 
 							// notify group host
-							SEMAPHORE_LOCK(&group->host->write_mutex, {
+							WRITE_LOCK(group->host, {
 								nio_write8(&group->host->stream, R2U_JOIN);
 								nio_write32(&group->host->stream, user->uid);
 							});
 
 							// notify new member
-							SEMAPHORE_LOCK(&user->write_mutex, {
+							WRITE_LOCK(user, {
 								nio_write8(stream, R2U_MADE);
 								nio_write8(stream, FROM_JOIN | STAT_OK);
 								nio_write32(stream, group->gid);
@@ -219,7 +221,7 @@ void* user_thread(void* context) {
 
 						} else {
 
-							SEMAPHORE_LOCK(&user->write_mutex, {
+							WRITE_LOCK(user, {
 								nio_write8(stream, R2U_MADE);
 								nio_write8(stream, status_closed);
 								nio_write32(stream, NULL_GROUP);
@@ -311,7 +313,7 @@ void* user_thread(void* context) {
 					NioBlock block = nio_block(stream, len);
 					nio_readbuf(stream, &block);
 
-					SEMAPHORE_LOCK(&target->write_mutex, {
+					WRITE_LOCK(target, {
 
 						NIO_CORK(&target->stream, {
 
@@ -390,7 +392,7 @@ void* user_thread(void* context) {
 				// lock targets
 				IDVEC_FOREACH(User*, target, group->members) {
 					if (target->uid != uid) {
-						sem_wait(&target->write_mutex);
+						sem_wait(&target->stream.write_mutex);
 						nio_cork(&target->stream, true);
 
 						// send header once
@@ -399,7 +401,7 @@ void* user_thread(void* context) {
 						nio_write32(&target->stream, len);
 					}
 				}
-				
+
 				IDVEC_FOREACH(User*, initial, group->members) {
 					if (initial->uid != uid) {
 						nio_writebuf(&initial->stream, &block);
@@ -425,7 +427,7 @@ void* user_thread(void* context) {
 				IDVEC_FOREACH(User*, unlock, group->members) {
 					if (unlock->uid != uid) {
 						nio_cork(&unlock->stream, false);
-						sem_post(&unlock->write_mutex);
+						sem_post(&unlock->stream.write_mutex);
 					}
 				}
 
@@ -478,51 +480,13 @@ void* user_thread(void* context) {
 	user_free(user);
 }
 
-void accept_handle(int conn, void* userdata) {
-
-	Config* cfg = userdata;
-	
-	if (users->counter >= cfg->users) {
-		close(conn);
-		return;
-	}
-
-	User* user = store_putuser(users, conn);
-
-	pthread_t thread;
-	pthread_create(&thread, NULL, user_thread, user);
-}
-
-void cleanup_handle(int sock, void* userdata) {
-
-	SHARED_LOCK(&users->mutex, {
-		IdMapIterator iter = idmap_iterator(users->map);
-
-		while (idmap_has(&iter)) {
-			User* user = idmap_next(&iter);
-			nio_drop(&user->stream);
-		}
-	});
-
-	// spin lock!
-	while (users->counter > 0) {
-		usleep(10000); // 10ms
-	}
-
-	close(sock);
-	store_free(users);
-	store_free(groups);
-	exit(0);
-
-}
-
 int main() {
 
 	Config cfg;
 
 	config_default(&cfg);
 	config_load(&cfg, "server.cfg");
-	
+
 	// set logger level
 	log_setlv(cfg.level);
 
@@ -536,11 +500,10 @@ int main() {
 	users = store_create(cfg.uids);
 	groups = store_create(cfg.gids);
 
-	TcpServer server;
-	server.accept_callback = accept_handle;
-	server.cleanup_callback = cleanup_handle;
+	ServerPool servers;
+	servers.user_thread = user_thread;
 
-	tcps_start(&server, cfg.port, 8, &cfg);
+	server_start(&servers, 8, &cfg);
 
 	InputLine line;
 	line.line = NULL;
@@ -565,7 +528,7 @@ int main() {
 		}
 
 		if (streq(buffer, "stop")) {
-			tcps_stop(&server);
+			server_stop(&servers);
 		}
 
 		if (streq(buffer, "users")) {

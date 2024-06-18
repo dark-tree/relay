@@ -22,10 +22,10 @@ void store_free(IdStore* store) {
 	free(store);
 }
 
-User* store_putuser(IdStore* store, int connfd) {
+User* store_putuser(IdStore* store, NioStream stream) {
 
 	uint32_t uid = idseq_next(&store->sequence);
-	User* user = user_create(uid, connfd);
+	User* user = user_create(uid, stream);
 
 	UNIQUE_LOCK(&store->mutex, {
 		idmap_put(store->map, uid, user);

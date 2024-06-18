@@ -29,3 +29,16 @@ void util_sanitize(uint8_t* buffer, uint32_t len) {
 	}
 
 }
+
+char* base64_encode(const unsigned char* input, int length) {
+	const int pl = 4 * ((length + 2) / 3);
+	char* output = calloc(pl + 1, 1);
+	const int ol = EVP_EncodeBlock(output, input, length);
+
+	if (ol != pl) {
+		free(output);
+		return NULL;
+	}
+
+	return output;
+}

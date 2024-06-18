@@ -66,13 +66,13 @@ void* tcps_accept(void* args) {
 			break;
 		}
 
-		server->accept_callback(connfd, server->userdata);
+		server->accept_callback(connfd, server);
 
 	}
 
 	// if we got here server exit must have been triggered, or error occured
 	log_info("Server shutting down...\n");
-	server->cleanup_callback(server->sockfd, server->userdata);
+	server->cleanup_callback(server->sockfd, server);
 
 }
 
@@ -100,7 +100,7 @@ void tcps_start(TcpServer* server, uint16_t port, uint16_t backlog, void* userda
 	address.sin_addr.s_addr = htonl(INADDR_ANY);
 
 	if (bind(sockfd, (struct sockaddr*) &address, sizeof(address)) != 0) {
-		log_fatal("Failed to bind to port!\n");
+		log_fatal("Failed to bind to port %d!\n", port);
 		exit(-1);
 	}
 

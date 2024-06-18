@@ -6,6 +6,7 @@
 #include <common/input.h>
 #include <common/logger.h>
 #include <common/util.h>
+#include <common/network.h>
 
 // TODO move somewhere else
 const char* decode_setting(uint32_t key) {
@@ -196,7 +197,7 @@ int main(int argc, char* argv[]) {
 	log_info("Successfully made a TCP connection to server.\n");
 
 	NioStream stream;
-	nio_create(&stream, (int) sockfd, 1024);
+	nio_create(&stream, (int) sockfd, 1024, net_tcp);
 
 	pthread_t thread;
 	pthread_create(&thread, NULL, server_listener, &stream);

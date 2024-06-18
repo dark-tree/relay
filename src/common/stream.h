@@ -2,11 +2,27 @@
 #pragma once
 #include "external.h"
 
-typedef struct {
+typedef struct NioStream_tag {
+
+	// shared state
 	int connfd;
 	uint8_t* buffer;
 	uint32_t size;
 	bool open;
+
+	// attached state
+	void* super;
+
+	// stream read/write methods pointers
+	int (*read) (struct NioStream_tag*, void*, uint32_t);
+	int (*write) (struct NioStream_tag*, void*, uint32_t);
+
+	// This mutex is used to guard agains two threads
+	// writing at the same time to the same connection.
+	// To protect against a deadlock during locking of those
+	// mutexes the Master Group Lock is used, learn more in group.h
+	sem_t write_mutex;
+
 } NioStream;
 
 typedef struct {
@@ -15,9 +31,18 @@ typedef struct {
 	uint8_t* buffer;
 } NioBlock;
 
+typedef struct {
+
+	// stream read/write method pointers
+	int (*read) (struct NioStream_tag*, void*, uint32_t);
+	int (*write) (struct NioStream_tag*, void*, uint32_t);
+	int (*init) (struct NioStream_tag*);
+
+} NioFunctor;
+
 /// Corectlly initializes the given NioStream pointer,
 /// the length parameter controls the size of the transit buffer (the buffer used by NioBlock).
-void nio_create(NioStream* stream, int connfd, uint32_t length);
+void nio_create(NioStream* stream, int connfd, uint32_t length, NioFunctor functions);
 
 // Moves the stream into a 'dropped' state, while the connection is still no closed, all furture
 // reads will return 0s and writes will do nothing. nio_open() will return false after this call

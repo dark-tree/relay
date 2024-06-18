@@ -6,23 +6,20 @@
 #include <server/mutex.h>
 #include <server/group.h>
 
-User* user_create(uint32_t uid, int connfd) {
+User* user_create(uint32_t uid, NioStream stream) {
 	User* user = malloc(sizeof(User));
 
 	user->uid = uid;
 	user->role = ROLE_CONNECTED;
 	user->group = NULL;
 	user->exit = false;
-
-	nio_create(&user->stream, connfd, 0x1000);
-	sem_init(&user->write_mutex, 0, 1);
+	user->stream = stream;
 
 	return user;
 }
 
 void user_free(User* user) {
 	nio_free(&user->stream);
-	sem_destroy(&user->write_mutex);
 	free(user);
 }
 
@@ -33,7 +30,7 @@ int user_verify(User* user, uint8_t role) {
 
 	NioStream* stream = &user->stream;
 
-	SEMAPHORE_LOCK(&user->write_mutex, {
+	WRITE_LOCK(user, {
 		nio_write8(stream, R2U_STAT);
 		nio_write8(stream, user->role);
 	});
@@ -117,7 +114,7 @@ uint32_t* user_setting_get(User* user, uint32_t key, bool write) {
 }
 
 void user_setting_send(User* user, uint32_t key, uint32_t val) {
-	SEMAPHORE_LOCK(&user->write_mutex, {
+	WRITE_LOCK(user, {
 		NioStream* stream = &user->stream;
 
 		NIO_CORK(stream, {

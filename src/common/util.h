@@ -14,3 +14,5 @@ uint32_t util_min(uint32_t a, uint32_t b);
 /// making sure it will not break formating or contain escape codes.
 void util_sanitize(uint8_t* buffer, uint32_t len);
 
+
+char* base64_encode(const unsigned char* input, int length);

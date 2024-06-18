@@ -86,7 +86,7 @@ void* group_cleanup(void* this) {
 void group_exit(Group* group, User* user) {
 
 	// notify self
-	SEMAPHORE_LOCK(&user->write_mutex, {
+	WRITE_LOCK(user, {
 
 		user->role = ROLE_CONNECTED;
 		user->group = NULL;
@@ -127,7 +127,7 @@ void group_exit(Group* group, User* user) {
 
 		User* host = group->host;
 
-		SEMAPHORE_LOCK(&group->host->write_mutex, {
+		WRITE_LOCK(group->host, {
 
 			nio_write8(&host->stream, R2U_LEFT);
 			nio_write32(&host->stream, user->uid);

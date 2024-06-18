@@ -2,6 +2,7 @@
 #pragma once
 #include "external.h"
 
+#include <common/stream.h>
 #include <common/map.h>
 #include <server/mutex.h>
 #include <server/sequence.h>
@@ -28,7 +29,7 @@ void store_free(IdStore* store);
 
 /// Creates a new instance of a user and emplaces it into the
 /// synchronized storage. Refere to the user_create function
-struct User_tag* store_putuser(IdStore* store, int connfd);
+struct User_tag* store_putuser(IdStore* store, NioStream stream);
 
 /// Creates a new instance of a group and emplaces it into the
 /// synchronized storage. Refere to the group_create function
