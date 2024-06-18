@@ -33,6 +33,7 @@ set(COMMON_SOURCES
 	src/common/input.c
 	src/common/util.c
 	src/common/http.c
+	src/common/network.c
 	src/common/network/tcp.c
 	src/common/network/ws.c
 )

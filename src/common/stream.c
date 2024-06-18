@@ -61,6 +61,7 @@ int nio_header(NioStream* stream, uint8_t* id) {
 
 	// something other than the timeout occured, set error
 	if (status == 0 || errno != EWOULDBLOCK) {
+		log_debug("Call to read() was aborted! (status: %d)\n", status);
 		stream->open = false;
 		return 2;
 	}
