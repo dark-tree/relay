@@ -13,8 +13,13 @@ static int tcp_init(NioStream* stream) {
 	// nothing to do here
 }
 
+static int tcp_flush(NioStream* stream) {
+	// nothing to do here
+}
+
 NioFunctor net_tcp = {
 	.read = tcp_read,
 	.write = tcp_write,
+	.flush = tcp_flush,
 	.init = tcp_init
 };

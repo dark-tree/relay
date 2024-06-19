@@ -16,6 +16,7 @@ typedef struct NioStream_tag {
 	// stream read/write methods pointers
 	int (*read) (struct NioStream_tag*, void*, uint32_t);
 	int (*write) (struct NioStream_tag*, void*, uint32_t);
+	int (*flush) (struct NioStream_tag*);
 
 	// This mutex is used to guard agains two threads
 	// writing at the same time to the same connection.
@@ -36,6 +37,7 @@ typedef struct {
 	// stream read/write method pointers
 	int (*read) (struct NioStream_tag*, void*, uint32_t);
 	int (*write) (struct NioStream_tag*, void*, uint32_t);
+	int (*flush) (struct NioStream_tag*);
 	int (*init) (struct NioStream_tag*);
 
 } NioFunctor;
@@ -59,6 +61,10 @@ void nio_timeout(NioStream* stream, struct timeval* timev);
 /// Used to either disable or enable the Nagle's algoritm, when enabled nothing will be send
 /// unless enought data is gathered in the TX buffer to form a full packet.
 void nio_cork(NioStream* stream, int flag);
+
+///
+///
+void nio_flush(NioStream* stream);
 
 /// Check if the connection is still usable, or did an error (including timeout) occured,
 /// this should be checked often to make sure further commands make sense.

@@ -52,6 +52,7 @@ void* user_thread(void* context) {
 
 		uint8_t id;
 
+		nio_flush(stream);
 		nio_timeout(stream, &initial_read);
 
 		while (true) {
@@ -279,7 +280,6 @@ void* user_thread(void* context) {
 				// we have to read the message bytes from the stream
 				// to stay synchronized
 				nio_skip(stream, len);
-
 				continue;
 			}
 
@@ -297,7 +297,6 @@ void* user_thread(void* context) {
 
 					// as before we need to read the message anyway
 					nio_skip(stream, len);
-
 					continue;
 				}
 
@@ -337,6 +336,8 @@ void* user_thread(void* context) {
 						});
 
 					});
+
+					nio_flush(&target->stream);
 
 				} else {
 
@@ -428,6 +429,7 @@ void* user_thread(void* context) {
 					if (unlock->uid != uid) {
 						nio_cork(&unlock->stream, false);
 						sem_post(&unlock->stream.write_mutex);
+						nio_flush(&unlock->stream);
 					}
 				}
 

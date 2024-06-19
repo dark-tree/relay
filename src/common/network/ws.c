@@ -12,11 +12,18 @@
 #define WEBSOCK_PING     9
 #define WEBSOCK_PONG     10
 
+#define WRITE_BUFFER 4096
+
 typedef struct {
 
+	// input
 	uint64_t bytes;
 	uint64_t mask;
 	uint64_t offset;
+
+	// output
+	uint64_t position;
+	uint8_t buffer[WRITE_BUFFER];
 
 	NioFunctor base;
 
@@ -180,7 +187,58 @@ static int ws_read(NioStream* stream, void* buffer, uint32_t bytes) {
 }
 
 static int ws_write(NioStream* stream, void* buffer, uint32_t length) {
-	return ws_send(stream, WEBSOCK_BINARY, buffer, length);
+
+	WebsocketState* state = (WebsocketState*) stream->super;
+	const uint32_t total = length;
+
+	while (length > 0) {
+
+		int result = 0;
+		int remaining = WRITE_BUFFER - state->position;
+		int transfered = util_min(remaining, length);
+
+		if (remaining > 0) {
+			memcpy(state->buffer + state->position, buffer, transfered);
+
+			length -= transfered;
+			remaining -= transfered;
+			state->position += transfered;
+		}
+
+		if (remaining <= 0) {
+			if ((result = ws_send(stream, WEBSOCK_BINARY, state->buffer, state->position)) <= 0) {
+				return result;
+			}
+
+			state->position = 0;
+		}
+
+	}
+
+	return total;
+
+}
+
+static int ws_flush(NioStream* stream) {
+
+	int result = 1;
+	WebsocketState* state = (WebsocketState*) stream->super;
+
+	if (state->position == 0) {
+		return 1;
+	}
+
+	sem_wait(&stream->write_mutex);
+	uint32_t length = state->position;
+
+	if (length > 0) {
+		state->position = 0;
+		result = ws_send(stream, WEBSOCK_BINARY, state->buffer, length);
+	}
+
+	sem_post(&stream->write_mutex);
+	return result;
+
 }
 
 static int ws_init(NioStream* stream) {
@@ -191,6 +249,7 @@ static int ws_init(NioStream* stream) {
 	state->offset = 0;
 	state->mask = 0;
 	state->bytes = 0;
+	state->position = 0;
 	stream->super = state;
 
 	http_upgrade(stream->connfd);
@@ -200,5 +259,6 @@ static int ws_init(NioStream* stream) {
 NioFunctor net_ws = {
 	.read = ws_read,
 	.write = ws_write,
+	.flush = ws_flush,
 	.init = ws_init
 };

@@ -15,6 +15,7 @@ void nio_create(NioStream* stream, int connfd, uint32_t length, NioFunctor funct
 
 	stream->read = functions.read;
 	stream->write = functions.write;
+	stream->flush = functions.flush;
 
 	functions.init(stream);
 }
@@ -40,6 +41,10 @@ void nio_timeout(NioStream* stream, struct timeval* timev) {
 
 void nio_cork(NioStream* stream, int flag) {
 	setsockopt(stream->connfd, IPPROTO_TCP, TCP_CORK, &flag, sizeof(int));
+}
+
+void nio_flush(NioStream* stream) {
+	stream->flush(stream);
 }
 
 bool nio_open(NioStream* stream) {
