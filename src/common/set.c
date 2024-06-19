@@ -1,7 +1,7 @@
 
 #include "set.h"
 
-IdSetNode* idset_mknode(void* val, IdSetNode* next) {
+static IdSetNode* idset_mknode(void* val, IdSetNode* next) {
 	IdSetNode* node = malloc(sizeof(IdSetNode));
 
 	node->val = val;
@@ -54,7 +54,7 @@ void* idset_next(IdSetIterator* iterator) {
 		iterator->base = &(node->next);
 		iterator->node = node->next;
 	}
-	
+
 	if (node) {
 		return node->val;
 	}

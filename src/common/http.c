@@ -155,12 +155,13 @@ int http_write(int connfd, HttpHeader* http) {
 
 }
 
-void http_upgrade(int connfd) {
+int http_upgrade(int connfd) {
 
 	const char* magic_websocket_constant = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
 
 	HttpPair websocket;
 	websocket.key = "Sec-WebSocket-Key";
+	websocket.value = NULL;
 
 	{
 		HttpHeader http;
@@ -168,7 +169,13 @@ void http_upgrade(int connfd) {
 		http.count = 1;
 
 		// read http header and retrive the websocket nounce
-		http_read(connfd, &http, 4096, false);
+		if (http_read(connfd, &http, 4096, false)) {
+			return -1;
+		}
+	}
+
+	if (websocket.value == NULL) {
+		return -1;
 	}
 
 	int magic = strlen(magic_websocket_constant);
@@ -197,10 +204,14 @@ void http_upgrade(int connfd) {
 		http.pairs = pairs;
 		http.count = 3;
 
-		http_write(connfd, &http);
+		if (http_write(connfd, &http)) {
+			return -1;
+		}
 	}
 
 	free(solution);
 	free(websocket.value);
+
+	return 0;
 
 }

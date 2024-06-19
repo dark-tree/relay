@@ -19,5 +19,10 @@ typedef struct {
 
 } ServerPool;
 
-void server_start(ServerPool* pool, int backlog, Config* cfg);
+/// Start the server pool as specificed in the config
+/// New server is made for each non-zero port number
+void server_start(ServerPool* pool, Config* cfg);
+
+/// Stops all the servers in the server pool and invokes cleanup
+/// after that it terminates the application by calling exit()
 void server_stop(ServerPool* pool);

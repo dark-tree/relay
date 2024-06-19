@@ -3,23 +3,14 @@
 
 #include "common/logger.h"
 
-void input_readline(InputLine* line) {
-	getline(&line->line, &line->length, stdin);
-	line->offset = 0;
-}
-
-void input_free(InputLine* line) {
-	free(line->line);
-}
-
-char input_norm(char chr) {
+static char input_norm(char chr) {
 	if (chr == '\n') return ' ';
 	if (chr == '\t') return ' ';
 
 	return chr;
 }
 
-bool input_lexeme(InputLine* line, char* buffer, uint32_t limit, bool string) {
+static bool input_lexeme(InputLine* line, char* buffer, uint32_t limit, bool string) {
 
 	char* from = line->line + line->offset;
 	uint32_t src = 0;
@@ -52,31 +43,7 @@ bool input_lexeme(InputLine* line, char* buffer, uint32_t limit, bool string) {
 
 }
 
-bool input_token(InputLine* line, char* buffer, uint32_t limit) {
-	return input_lexeme(line, buffer, limit, false);
-}
-
-bool input_string(InputLine* line, char* buffer, uint32_t limit) {
-	return input_lexeme(line, buffer, limit, true);
-}
-
-bool input_number(InputLine* line, long* num) {
-
-	char buffer[128];
-
-	if (!input_token(line, buffer, 128)) {
-		return false;
-	}
-
-	if (!input_parse(num, buffer)) {
-		return false;
-	}
-
-	return true;
-
-}
-
-bool input_strtol(long* num, char* buffer, int base) {
+static bool input_strtol(long* num, char* buffer, int base) {
 
 	long tmp = 0;
 
@@ -97,6 +64,39 @@ bool input_strtol(long* num, char* buffer, int base) {
 	}
 
 	*num = value;
+	return true;
+
+}
+
+void input_readline(InputLine* line) {
+	getline(&line->line, &line->length, stdin);
+	line->offset = 0;
+}
+
+void input_free(InputLine* line) {
+	free(line->line);
+}
+
+bool input_token(InputLine* line, char* buffer, uint32_t limit) {
+	return input_lexeme(line, buffer, limit, false);
+}
+
+bool input_string(InputLine* line, char* buffer, uint32_t limit) {
+	return input_lexeme(line, buffer, limit, true);
+}
+
+bool input_number(InputLine* line, long* num) {
+
+	char buffer[128];
+
+	if (!input_token(line, buffer, 128)) {
+		return false;
+	}
+
+	if (!input_parse(num, buffer)) {
+		return false;
+	}
+
 	return true;
 
 }

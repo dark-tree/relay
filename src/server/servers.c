@@ -3,6 +3,7 @@
 
 #include <common/stream.h>
 #include <common/network.h>
+#include <common/logger.h>
 #include <server/mutex.h>
 #include <server/store.h>
 #include <server/user.h>
@@ -10,7 +11,7 @@
 extern IdStore* users;
 extern IdStore* groups;
 
-void server_accept_handle(int connfd, TcpServer* server) {
+static void server_accept_handle(int connfd, TcpServer* server) {
 
 	ServerPool* servers = server->userdata;
 
@@ -32,7 +33,7 @@ void server_accept_handle(int connfd, TcpServer* server) {
 
 }
 
-void server_cleanup_handle(int sockfd, TcpServer* server) {
+static void server_cleanup_handle(int sockfd, TcpServer* server) {
 
 	ServerPool* servers = server->userdata;
 	sem_wait(&servers->cleanup_mutex);
@@ -43,6 +44,8 @@ void server_cleanup_handle(int sockfd, TcpServer* server) {
 		sem_post(&servers->cleanup_mutex);
 		return;
 	}
+
+	log_info("Server shutting down...\n");
 
 	SHARED_LOCK(&users->mutex, {
 		IdMapIterator iter = idmap_iterator(users->map);
@@ -69,7 +72,7 @@ void server_cleanup_handle(int sockfd, TcpServer* server) {
 
 }
 
-void server_insert(ServerPool* pool, int port, NioFunctor functor, int backlog, int* index) {
+static void server_insert(ServerPool* pool, int port, NioFunctor functor, int backlog, int* index) {
 
 	if (!port) {
 		return;
@@ -85,7 +88,7 @@ void server_insert(ServerPool* pool, int port, NioFunctor functor, int backlog, 
 
 }
 
-void server_start(ServerPool* pool, int backlog, Config* cfg) {
+void server_start(ServerPool* pool, Config* cfg) {
 
 	// used in accept and cleaup handles
 	sem_init(&pool->accept_mutex, 0, 1);
@@ -93,6 +96,7 @@ void server_start(ServerPool* pool, int backlog, Config* cfg) {
 
 	pool->max_users = cfg->users;
 
+	int backlog = cfg->backlog;
 	int index = 0;
 
 	server_insert(pool, cfg->urp_port, net_tcp, backlog, &index);

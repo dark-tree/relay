@@ -71,7 +71,6 @@ void* tcps_accept(void* args) {
 	}
 
 	// if we got here server exit must have been triggered, or error occured
-	log_info("Server shutting down...\n");
 	server->cleanup_callback(server->sockfd, server);
 
 }

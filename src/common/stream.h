@@ -62,8 +62,8 @@ void nio_timeout(NioStream* stream, struct timeval* timev);
 /// unless enought data is gathered in the TX buffer to form a full packet.
 void nio_cork(NioStream* stream, int flag);
 
-///
-///
+/// Passes a 'flush' request to the underlying stream implementation
+/// This is needed for streams running over WebSockets
 void nio_flush(NioStream* stream);
 
 /// Check if the connection is still usable, or did an error (including timeout) occured,

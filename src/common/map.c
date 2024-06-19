@@ -1,11 +1,11 @@
 
 #include "map.h"
 
-void* idmap_unpack(IdMapNode* node) {
+static void* idmap_unpack(IdMapNode* node) {
 	return node != NULL ? node->pair.val : NULL;
 }
 
-IdMapNode* idmap_mknode(uint32_t key, void* val, IdMapNode* next) {
+static IdMapNode* idmap_mknode(uint32_t key, void* val, IdMapNode* next) {
     IdMapNode* node = malloc(sizeof(IdMapNode));
 
 	node->pair.key = key;

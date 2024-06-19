@@ -505,7 +505,7 @@ int main() {
 	ServerPool servers;
 	servers.user_thread = user_thread;
 
-	server_start(&servers, 8, &cfg);
+	server_start(&servers, &cfg);
 
 	InputLine line;
 	line.line = NULL;

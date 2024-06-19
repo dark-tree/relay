@@ -3,7 +3,10 @@
 
 #include <common/logger.h>
 
-void config_insert_idseqmode(IdSeqMode* option, const char* key, const char* val) {
+#define MAX_UINT32 0xFFFFFFFF
+#define MAX_UINT16 0xFFFF
+
+static void config_insert_idseqmode(IdSeqMode* option, const char* key, const char* val) {
 
 	if (streq(val, "monotonic")) {
 		*option = IDSEQ_MONOTONIC;
@@ -19,7 +22,7 @@ void config_insert_idseqmode(IdSeqMode* option, const char* key, const char* val
 
 }
 
-void config_insert_long(uint32_t* option, const char* key, const char* val, uint64_t max) {
+static void config_insert_long(uint32_t* option, const char* key, const char* val, uint64_t max) {
 
 	char* endptr;
 	uint64_t value = strtoull(val, &endptr, 10);
@@ -33,7 +36,7 @@ void config_insert_long(uint32_t* option, const char* key, const char* val, uint
 
 }
 
-void config_insert_string(char* buffer, const char* key, const char* val, uint64_t max) {
+static void config_insert_string(char* buffer, const char* key, const char* val, uint64_t max) {
 
 	uint64_t len = strlen(val);
 
@@ -52,20 +55,25 @@ void config_insert_string(char* buffer, const char* key, const char* val, uint64
 
 }
 
-void config_insert(Config* cfg, const char* key, const char* val) {
+static void config_insert(Config* cfg, const char* key, const char* val) {
 
 	if (streq(key, "users")) {
-		config_insert_long(&cfg->users, key, val, 0xFFFFFFFF);
+		config_insert_long(&cfg->users, key, val, MAX_UINT32);
+		return;
+	}
+
+	if (streq(key, "max-backlog")) {
+		config_insert_long(&cfg->backlog, key, val, MAX_UINT16);
 		return;
 	}
 
 	if (streq(key, "urp-port")) {
-		config_insert_long(&cfg->urp_port, key, val, 0xFFFF);
+		config_insert_long(&cfg->urp_port, key, val, MAX_UINT16);
 		return;
 	}
 
 	if (streq(key, "ws-port")) {
-		config_insert_long(&cfg->ws_port, key, val, 0xFFFF);
+		config_insert_long(&cfg->ws_port, key, val, MAX_UINT16);
 		return;
 	}
 
@@ -98,6 +106,7 @@ void config_insert(Config* cfg, const char* key, const char* val) {
 void config_default(Config* config) {
 
 	config->users = 0xFFFFFFFF;
+	config->backlog = 8;
 	config->urp_port = 9686;
 	config->ws_port = 9687;
 	config->uids = IDSEQ_MONOTONIC;
@@ -149,13 +158,6 @@ void config_load(Config* config, const char* path) {
 
 	}
 
-	config->fd = fd;
+	fclose(fd);
 
-}
-
-void config_free(Config* config) {
-	if (config->fd != NULL) {
-		fclose(config->fd);
-		config->fd = NULL;
-	}
 }
