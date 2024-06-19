@@ -252,7 +252,7 @@ static int ws_init(NioStream* stream) {
 	state->position = 0;
 	stream->super = state;
 
-	http_upgrade(stream->connfd);
+	http_upgrade(&state->base, stream);
 
 }
 

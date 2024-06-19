@@ -5,15 +5,7 @@
 #include <common/util.h>
 #include <common/const.h>
 
-// TODO remove
-#define CORK_BLOCK(fd, ...) { \
-	int cork_true = 1, cork_false = 0; \
-	setsockopt(fd, SOL_TCP, TCP_CORK, &cork_true, sizeof(int)); \
-	{ __VA_ARGS__ } \
-	setsockopt(fd, SOL_TCP, TCP_CORK, &cork_false, sizeof(int)); \
-}
-
-int http_read(int connfd, HttpHeader* http, int line_buffer_size, bool read_status_line) {
+int http_read(NioFunctor* base, NioStream* stream, HttpHeader* http, int line_buffer_size, bool read_status_line) {
 
 	int offset = 0;
 	char buffer[line_buffer_size];
@@ -32,7 +24,7 @@ int http_read(int connfd, HttpHeader* http, int line_buffer_size, bool read_stat
 
 		char value;
 
-		if (read(connfd, &value, 1) <= 0) {
+		if (net_read(base, stream, &value, 1) <= 0) {
 			return -1;
 		}
 
@@ -62,7 +54,7 @@ int http_read(int connfd, HttpHeader* http, int line_buffer_size, bool read_stat
 
 		char value;
 
-		if (read(connfd, &value, 1) <= 0) {
+		if (net_read(base, stream, &value, 1) <= 0) {
 			return -1;
 		}
 
@@ -126,28 +118,28 @@ int http_read(int connfd, HttpHeader* http, int line_buffer_size, bool read_stat
 
 }
 
-int http_write(int connfd, HttpHeader* http) {
+int http_write(NioFunctor* base, NioStream* stream, HttpHeader* http) {
 
-	CORK_BLOCK(connfd, {
+	NIO_CORK(stream, {
 
 		if (http->header != NULL) {
-			write(connfd, http->header, strlen(http->header));
+			net_write(base, stream, http->header, strlen(http->header));
 		}
 
-		write(connfd, "\r\n", 2);
+		net_write(base, stream, "\r\n", 2);
 
 		for (int i = 0; i < http->count; i ++) {
 
 			HttpPair* pair = http->pairs + i;
 
-			write(connfd, pair->key, strlen(pair->key));
-			write(connfd, ": ", 2);
-			write(connfd, pair->value, strlen(pair->value));
-			write(connfd, "\r\n", 2);
+			net_write(base, stream, pair->key, strlen(pair->key));
+			net_write(base, stream, ": ", 2);
+			net_write(base, stream, pair->value, strlen(pair->value));
+			net_write(base, stream, "\r\n", 2);
 
 		}
 
-		write(connfd, "\r\n", 2);
+		net_write(base, stream, "\r\n", 2);
 
 	});
 
@@ -155,7 +147,7 @@ int http_write(int connfd, HttpHeader* http) {
 
 }
 
-int http_upgrade(int connfd) {
+int http_upgrade(NioFunctor* base, NioStream* stream) {
 
 	const char* magic_websocket_constant = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
 
@@ -169,7 +161,7 @@ int http_upgrade(int connfd) {
 		http.count = 1;
 
 		// read http header and retrive the websocket nounce
-		if (http_read(connfd, &http, 4096, false)) {
+		if (http_read(base, stream, &http, 4096, false)) {
 			return -1;
 		}
 	}
@@ -204,7 +196,7 @@ int http_upgrade(int connfd) {
 		http.pairs = pairs;
 		http.count = 3;
 
-		if (http_write(connfd, &http)) {
+		if (http_write(base, stream, &http)) {
 			return -1;
 		}
 	}
