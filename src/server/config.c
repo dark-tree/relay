@@ -152,14 +152,14 @@ void config_load(Config* config, const char* path) {
 				break;
 			}
 
-			// skip comments
-			if (key[0] == '#') {
+			// skip empty line
+			if (code == 0) {
 				fscanf(fd, "\n");
 				continue;
 			}
 
-			// skip empty line
-			if (code == 0) {
+			// skip comments
+			if (key[0] == '#') {
 				fscanf(fd, "\n");
 				continue;
 			}

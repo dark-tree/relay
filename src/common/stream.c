@@ -27,12 +27,14 @@ void nio_create(NioStream* stream, int connfd, uint32_t length, NioFunctor funct
 	stream->buffer = calloc(length, 1);
 	stream->size = length;
 	stream->open = true;
-	stream->super = NULL;
+	stream->ws = NULL;
+	stream->ssl = NULL;
 	sem_init(&stream->write_mutex, 0, 1);
 
 	stream->read = functions.read;
 	stream->write = functions.write;
 	stream->flush = functions.flush;
+	stream->free = functions.free;
 
 	functions.init(stream);
 }
@@ -47,8 +49,8 @@ void nio_free(NioStream* stream) {
 	close(stream->connfd);
 	sem_destroy(&stream->write_mutex);
 
-	if (stream->super) {
-		free(stream->super);
+	if (stream->free) {
+		stream->free(stream);
 	}
 }
 

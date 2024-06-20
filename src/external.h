@@ -40,6 +40,7 @@
 #include <signal.h>
 
 // OpenSSL
+#include <openssl/ssl.h>
 #include <openssl/sha.h>
 #include <openssl/evp.h>
 

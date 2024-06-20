@@ -22,6 +22,7 @@
 #include <common/stream.h>
 
 extern NioFunctor net_tcp;
+extern NioFunctor net_ssl;
 extern NioFunctor net_ws;
 
 /// Changes the returns value domain from [-1, N] to {-1, 0, N} - ensuring

@@ -33,6 +33,8 @@
 
 typedef struct {
 
+	NioFunctor base;
+
 	// input
 	uint64_t bytes;
 	uint64_t mask;
@@ -42,13 +44,11 @@ typedef struct {
 	uint64_t position;
 	uint8_t buffer[WRITE_BUFFER];
 
-	NioFunctor base;
-
 } WebsocketState;
 
 static int ws_send(NioStream* stream, uint8_t opcode, void* buffer, uint32_t length) {
 
-	NioFunctor* base = &((WebsocketState*) stream->super)->base;
+	NioFunctor* base = &((WebsocketState*) stream->ws)->base;
 
 	int result = 0;
 	uint8_t head[2] = {0};
@@ -80,7 +80,7 @@ static int ws_send(NioStream* stream, uint8_t opcode, void* buffer, uint32_t len
 
 static int ws_read(NioStream* stream, void* buffer, uint32_t bytes) {
 
-	WebsocketState* state = (WebsocketState*) stream->super;
+	WebsocketState* state = (WebsocketState*) stream->ws;
 	NioFunctor* base = &state->base;
 
 	int result = 0;
@@ -205,7 +205,7 @@ static int ws_read(NioStream* stream, void* buffer, uint32_t bytes) {
 
 static int ws_write(NioStream* stream, void* buffer, uint32_t length) {
 
-	WebsocketState* state = (WebsocketState*) stream->super;
+	WebsocketState* state = (WebsocketState*) stream->ws;
 	const uint32_t total = length;
 
 	while (length > 0) {
@@ -239,7 +239,7 @@ static int ws_write(NioStream* stream, void* buffer, uint32_t length) {
 static int ws_flush(NioStream* stream) {
 
 	int result = 1;
-	WebsocketState* state = (WebsocketState*) stream->super;
+	WebsocketState* state = (WebsocketState*) stream->ws;
 
 	if (state->position == 0) {
 		return 1;
@@ -267,15 +267,20 @@ static int ws_init(NioStream* stream) {
 	state->mask = 0;
 	state->bytes = 0;
 	state->position = 0;
-	stream->super = state;
+	stream->ws = state;
 
-	http_upgrade(&state->base, stream);
+	return http_upgrade(&state->base, stream);
 
+}
+
+static int ws_free(NioStream* stream) {
+	free(stream->ws);
 }
 
 NioFunctor net_ws = {
 	.read = ws_read,
 	.write = ws_write,
 	.flush = ws_flush,
-	.init = ws_init
+	.init = ws_init,
+	.free = ws_free
 };

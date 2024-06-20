@@ -35,6 +35,7 @@ set(COMMON_SOURCES
 	src/common/http.c
 	src/common/network.c
 	src/common/network/tcp.c
+	src/common/network/ssl.c
 	src/common/network/ws.c
 )
 

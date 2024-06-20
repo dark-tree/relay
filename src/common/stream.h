@@ -28,12 +28,14 @@ typedef struct NioStream_tag {
 	bool open;
 
 	// attached state
-	void* super;
+	void* ws;
+	void* ssl;
 
-	// stream read/write methods pointers
+	// stream methods pointers
 	int (*read) (struct NioStream_tag*, void*, uint32_t);
 	int (*write) (struct NioStream_tag*, void*, uint32_t);
 	int (*flush) (struct NioStream_tag*);
+	int (*free) (struct NioStream_tag*);
 
 	// This mutex is used to guard agains two threads
 	// writing at the same time to the same connection.
@@ -56,6 +58,7 @@ typedef struct {
 	int (*write) (struct NioStream_tag*, void*, uint32_t);
 	int (*flush) (struct NioStream_tag*);
 	int (*init) (struct NioStream_tag*);
+	int (*free) (struct NioStream_tag*);
 
 } NioFunctor;
 
