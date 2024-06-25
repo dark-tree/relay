@@ -44,4 +44,8 @@
 #include <openssl/sha.h>
 #include <openssl/evp.h>
 
+// Linux
+#include <linux/limits.h>
+
 #define streq(a, b) (strcmp(a, b) == 0)
+#define streqi(a, b) (strcasecmp(a, b) == 0)

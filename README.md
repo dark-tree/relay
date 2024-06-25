@@ -13,6 +13,10 @@ cmake --build build/
 
 # start the debug client
 ./build/client localhost
+
+# for testing of the wss server you can generate the required
+# certificate and key with the provided scripts
+cd keychain && ./keygen.sh
 ```
 
 #### License

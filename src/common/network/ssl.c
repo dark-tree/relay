@@ -16,84 +16,106 @@
  *  along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+
 #include "../network.h"
 #include "ssl.h"
 
 #include <common/logger.h>
 
-SSL_CTX* ssl_ctx;
+typedef struct {
+	NetStream* base;
+	NetRead read;
+	NetWrite write;
+	NetFree free;
+	NetFlush flush;
+	NetStates* net;
+	const char* id;
 
-static void ssl_ctxfree() {
-	if (!ssl_ctx) {
-		return;
-	}
+	// private
+	SSL* handle;
+} SecureStream;
 
-	SSL_CTX_free(ssl_ctx);
-	ssl_ctx = NULL;
-}
-
-int ssl_ctxinit(const char* certificate, const char* key) {
+SSL_CTX* ssl_ctxinit(const char* certificate, const char* key) {
 	const SSL_METHOD* method = TLS_server_method();
-	ssl_ctx = SSL_CTX_new(method);
+	SSL_CTX* ctx = SSL_CTX_new(method);
 
-	if (!ssl_ctx) {
-		log_error("Unable to create SSL context!\n");
-		return -1;
+	if (!ctx) {
+		log_error("Unable to create SSL context\n");
+		return NULL;
 	}
 
-	if (SSL_CTX_use_certificate_file(ssl_ctx, certificate, SSL_FILETYPE_PEM) <= 0) {
-		log_error("Unable to use certificate '%s'!\n", certificate);
-		ssl_ctxfree();
-		return -1;
+	if (SSL_CTX_use_certificate_file(ctx, certificate, SSL_FILETYPE_PEM) <= 0) {
+		log_error("Unable to use certificate '%s'\n", certificate);
+		SSL_CTX_free(ctx);
+		return NULL;
 	}
 
-	if (SSL_CTX_use_PrivateKey_file(ssl_ctx, key, SSL_FILETYPE_PEM) <= 0) {
-		log_error("Unable to use private key '%s'!\n", key);
-		ssl_ctxfree();
-		return -1;
+	if (SSL_CTX_use_PrivateKey_file(ctx, key, SSL_FILETYPE_PEM) <= 0) {
+		log_error("Unable to use private key '%s'\n", key);
+		SSL_CTX_free(ctx);
+		return NULL;
 	}
 
-	atexit(ssl_ctxfree);
-	log_debug("SSL context created\n");
-	return 0;
+	log_debug("Successfully created SSL context with given certificate and key\n");
+	return ctx;
 }
 
-static int ssl_read(NioStream* stream, void* buffer, uint32_t length) {
-	return SSL_read(stream->ssl, buffer, length);
+static int ssl_read(NetStream* stream, void* buffer, uint32_t length) {
+	SecureStream* ssl = (SecureStream*) stream;
+	return ssl->handle ? SSL_read(ssl->handle, buffer, length) : 0;
 }
 
-static int ssl_write(NioStream* stream, void* buffer, uint32_t length) {
-	return SSL_write(stream->ssl, buffer, length);
+static int ssl_write(NetStream* stream, void* buffer, uint32_t length) {
+	SecureStream* ssl = (SecureStream*) stream;
+	return ssl->handle ? SSL_write(ssl->handle, buffer, length) : 0;
 }
 
-static int ssl_init(NioStream* stream) {
-	SSL* ssl = SSL_new(ssl_ctx);
-	SSL_set_fd(ssl, stream->connfd);
+static void ssl_free(NetStream* stream) {
+	SecureStream* ssl = (SecureStream*) stream;
+	if (ssl->handle) {
+		SSL_shutdown(ssl->handle);
+		SSL_free(ssl->handle);
+	}
 
-	if (SSL_accept(ssl) <= 0) {
-		log_debug("Failed to accept SSL connection!\n");
+	net_free(stream->base);
+	free(stream);
+}
+
+NetStream* net_ssl(NetConsts* consts) {
+	SecureStream* stream = malloc(sizeof(SecureStream));
+
+	// public
+	stream->base = NULL;
+	stream->read = ssl_read;
+	stream->write = ssl_write;
+	stream->free = ssl_free;
+	stream->flush = NULL;
+	stream->id = "SSL";
+
+	net_wrap(net_raw(consts), (NetStream*) stream);
+
+	SSL* ssl = SSL_new(consts->sctx);
+	SSL_set_fd(ssl, stream->net->connfd);
+
+	long ret;
+
+	if ((ret = SSL_accept(ssl)) <= 0) {
+		log_debug("Failed to accept SSL connection\n");
+
+		ret = SSL_get_error(ssl, ret);
+
+		int try = (ret != SSL_ERROR_SSL)  && (ret != SSL_ERROR_SYSCALL) && (ret != SSL_ERROR_ZERO_RETURN);
+
+		printf("%lu %d\n", ret, try);
+		stream->net->open = false;
 		SSL_free(ssl);
 		ssl = NULL;
+	} else {
+		log_debug("Accepted SSL connection\n");
 	}
 
-	stream->ssl = ssl;
-	return 0;
-}
+	// private
+	stream->handle = ssl;
 
-static int ssl_free(NioStream* stream) {
-	SSL_shutdown(stream->ssl);
-	SSL_free(stream->ssl);
-	return 0;
+	return (NetStream*) stream;
 }
-
-static int ssl_flush(NioStream* stream) {
-	// nothing to do here
-}
-
-NioFunctor net_ssl = {
-	.read = ssl_read,
-	.write = ssl_write,
-	.flush = ssl_flush,
-	.init = ssl_init,
-	.free = ssl_free
-};

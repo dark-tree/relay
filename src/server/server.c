@@ -44,7 +44,7 @@ void* user_thread(void* context) {
 	// FIXME
 	uint8_t brand[64] = "My Little Relay";
 
-	log_info("User #%d connected\n", user->uid);
+	log_info("User #%d connected over %s\n", user->uid, stream->impl->id);
 
 	NIO_CORK(stream, {
 		// send the welcome packet
@@ -410,7 +410,7 @@ void* user_thread(void* context) {
 				// lock targets
 				IDVEC_FOREACH(User*, target, group->members) {
 					if (target->uid != uid) {
-						sem_wait(&target->stream.write_mutex);
+						sem_wait(&NIO_STATE(&target->stream)->mutex);
 						nio_cork(&target->stream, true);
 
 						// send header once
@@ -445,7 +445,7 @@ void* user_thread(void* context) {
 				IDVEC_FOREACH(User*, unlock, group->members) {
 					if (unlock->uid != uid) {
 						nio_cork(&unlock->stream, false);
-						sem_post(&unlock->stream.write_mutex);
+						sem_post(&NIO_STATE(&target->stream)->mutex);
 						nio_flush(&unlock->stream);
 					}
 				}
@@ -500,6 +500,8 @@ void* user_thread(void* context) {
 }
 
 int main() {
+
+	OpenSSL_add_all_algorithms();
 
 	Config cfg;
 

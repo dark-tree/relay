@@ -27,7 +27,7 @@ typedef struct TcpServer_tag {
 	pthread_t thread;
 	int sockfd;
 	void* userdata;
-	NioFunctor functor;
+	NetFactory factory;
 
 	void (*accept_callback) (int connfd, struct TcpServer_tag* server);
 	void (*cleanup_callback) (int sockfd, struct TcpServer_tag* server);

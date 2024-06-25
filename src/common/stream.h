@@ -19,30 +19,12 @@
 #pragma once
 #include "external.h"
 
-typedef struct NioStream_tag {
+#include "network.h"
 
-	// shared state
-	int connfd;
+typedef struct NioStream_tag {
 	uint8_t* buffer;
 	uint32_t size;
-	bool open;
-
-	// attached state
-	void* ws;
-	void* ssl;
-
-	// stream methods pointers
-	int (*read) (struct NioStream_tag*, void*, uint32_t);
-	int (*write) (struct NioStream_tag*, void*, uint32_t);
-	int (*flush) (struct NioStream_tag*);
-	int (*free) (struct NioStream_tag*);
-
-	// This mutex is used to guard agains two threads
-	// writing at the same time to the same connection.
-	// To protect against a deadlock during locking of those
-	// mutexes the Master Group Lock is used, learn more in group.h
-	sem_t write_mutex;
-
+	NetStream* impl;
 } NioStream;
 
 typedef struct {
@@ -51,20 +33,9 @@ typedef struct {
 	uint8_t* buffer;
 } NioBlock;
 
-typedef struct {
-
-	// stream read/write method pointers
-	int (*read) (struct NioStream_tag*, void*, uint32_t);
-	int (*write) (struct NioStream_tag*, void*, uint32_t);
-	int (*flush) (struct NioStream_tag*);
-	int (*init) (struct NioStream_tag*);
-	int (*free) (struct NioStream_tag*);
-
-} NioFunctor;
-
 /// Corectlly initializes the given NioStream pointer,
 /// the length parameter controls the size of the transit buffer (the buffer used by NioBlock).
-void nio_create(NioStream* stream, int connfd, uint32_t length, NioFunctor functions);
+void nio_create(NioStream* stream, uint32_t length, NetStream* impl);
 
 // Moves the stream into a 'dropped' state, while the connection is still no closed, all furture
 // reads will return 0s and writes will do nothing. nio_open() will return false after this call
@@ -149,3 +120,6 @@ void nio_skip(NioStream* stream, uint32_t bytes);
 		__VA_ARGS__ \
 	} \
 	nio_cork(stream, false);
+
+// Helper macro for extracting the NetStates struct from NioStream
+#define NIO_STATE(this) ((this)->impl->net)

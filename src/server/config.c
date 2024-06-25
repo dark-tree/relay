@@ -39,6 +39,22 @@ static void config_insert_idseqmode(IdSeqMode* option, const char* key, const ch
 
 }
 
+static void config_insert_boolean(bool* option, const char* key, const char* val) {
+
+	if (streq(val, "true") || streq(val, "yes") || streq(val, "1")) {
+		*option = true;
+		return;
+	}
+
+	if (streq(val, "false") || streq(val, "no") || streq(val, "0")) {
+		*option = false;
+		return;
+	}
+
+	log_error("Value '%s' for key '%s' is neither 'true'/'yes'/'1' nor 'false'/'no'/'0', option ignored\n", val, key);
+
+}
+
 static void config_insert_long(uint32_t* option, const char* key, const char* val, uint64_t max) {
 
 	char* endptr;
@@ -94,6 +110,11 @@ static void config_insert(Config* cfg, const char* key, const char* val) {
 		return;
 	}
 
+	if (streq(key, "wss-port")) {
+		config_insert_long(&cfg->wss_port, key, val, MAX_UINT16);
+		return;
+	}
+
 	if (streq(key, "uids")) {
 		config_insert_idseqmode(&cfg->uids, key, val);
 		return;
@@ -109,10 +130,23 @@ static void config_insert(Config* cfg, const char* key, const char* val) {
 		return;
 	}
 
-	if (streq(key, "level")) {
-		uint32_t flags = LOG_FLAG_DEBUG | LOG_FLAG_INFO | LOG_FLAG_WARN | LOG_FLAG_ERROR | LOG_FLAG_FATAL;
+	if (streq(key, "ssl-enable")) {
+		config_insert_boolean(&cfg->ssl_enable, key, val);
+		return;
+	}
 
-		config_insert_long(&cfg->level, key, val, flags);
+	if (streq(key, "ssl-private-key")) {
+		config_insert_string(cfg->ssl_key, key, val, PATH_MAX);
+		return;
+	}
+
+	if (streq(key, "ssl-certificate")) {
+		config_insert_string(cfg->ssl_cert, key, val, PATH_MAX);
+		return;
+	}
+
+	if (streq(key, "level")) {
+		config_insert_long(&cfg->level, key, val, LOG_FLAG_DEBUG | LOG_FLAG_INFO | LOG_FLAG_WARN | LOG_FLAG_ERROR | LOG_FLAG_FATAL);
 		return;
 	}
 
@@ -124,11 +158,17 @@ void config_default(Config* config) {
 
 	config->users = 0xFFFFFFFF;
 	config->backlog = 8;
-	config->urp_port = 9686;
-	config->ws_port = 9687;
 	config->uids = IDSEQ_MONOTONIC;
 	config->gids = IDSEQ_MONOTONIC;
 	config->level = LOG_FLAG_WARN | LOG_FLAG_ERROR | LOG_FLAG_FATAL;
+
+	config->urp_port = 9686;
+	config->ws_port = 9687;
+	config->wss_port = 9688;
+
+	config->ssl_enable = false;
+	memset(config->ssl_cert, 0, 1);
+	memset(config->ssl_key, 0, 1);
 
 	const char* brand = "Unknown Relay";
 	memcpy(config->brand, brand, strlen(brand));

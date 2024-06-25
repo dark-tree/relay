@@ -64,4 +64,4 @@ uint32_t* user_setting_get(User* user, uint32_t key, bool write);
 void user_setting_send(User* user, uint32_t key, uint32_t val);
 
 /// semaphore lock macro helper
-#define WRITE_LOCK(user, ...) SEMAPHORE_LOCK(&((user)->stream).write_mutex, __VA_ARGS__);
+#define WRITE_LOCK(user, ...) SEMAPHORE_LOCK(&NIO_STATE(&(user)->stream)->mutex, __VA_ARGS__);

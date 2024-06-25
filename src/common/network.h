@@ -19,16 +19,58 @@
 #pragma once
 #include "external.h"
 
-#include <common/stream.h>
+struct NetStream_tag;
+struct NetConsts_tag;
 
-extern NioFunctor net_tcp;
-extern NioFunctor net_ssl;
-extern NioFunctor net_ws;
+typedef int (*NetRead) (struct NetStream_tag*, void*, uint32_t);
+typedef int (*NetWrite) (struct NetStream_tag*, void*, uint32_t);
+typedef void (*NetFree) (struct NetStream_tag*);
+typedef int (*NetFlush) (struct NetStream_tag*);
+typedef struct NetStream_tag* (*NetFactory) (struct NetConsts_tag*);
+
+typedef struct NetConsts_tag {
+	int connfd;
+	SSL_CTX* sctx;
+} NetConsts;
+
+typedef struct NetStates_tag {
+	int connfd;
+	bool open;
+
+	// This mutex is used to guard agains two threads
+	// writing at the same time to the same connection.
+	// To protect against a deadlock during locking of those
+	// mutexes the Master Group Lock is used, learn more in group.h
+	sem_t mutex;
+} NetStates;
+
+typedef struct NetStream_tag {
+	struct NetStream_tag* base; // the base of this stream struct
+	NetRead read;               // stream read function
+	NetWrite write;             // stream write function
+	NetFree free;               // called on cleanup, from top to bottom
+	NetFlush flush;             // nullable pointer to a function used for flushing any write buffers
+	NetStates* net;             // pointer to the NetStates struct
+	const char* id;             // human readable stream identifier
+} NetStream;
+
+NetStream* net_raw(NetConsts* consts);
+NetStream* net_ws(NetConsts* consts);
+NetStream* net_ssl(NetConsts* consts);
+NetStream* net_wss(NetConsts* consts);
+
+/// TODO
+///
+void net_wrap(NetStream* base, NetStream* wrapper);
+
+/// TODO
+///
+void net_free(NetStream* stream);
 
 /// Changes the returns value domain from [-1, N] to {-1, 0, N} - ensuring
 /// that either an error is reported or the read is completed in its entirety.
-int net_write(NioFunctor* base, NioStream* stream, void* buffer, int bytes);
+int net_write(NetStream* stream, void* buffer, int bytes);
 
 /// Changes the returns value domain from [-1, N] to {-1, 0, N} - ensuring
 /// that either an error is reported or the write is completed in its entirety.
-int net_read(NioFunctor* base, NioStream* stream, void* buffer, int bytes);
+int net_read(NetStream* stream, void* buffer, int bytes);

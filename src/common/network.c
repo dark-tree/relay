@@ -18,13 +18,26 @@
 
 #include "network.h"
 
-int net_write(NioFunctor* base, NioStream* stream, void* buffer, int bytes) {
+void net_wrap(NetStream* base, NetStream* wrapper) {
+	NetStream* head = wrapper;
+	head->base = base;
+	wrapper->net = base->net;
+}
+
+void net_free(NetStream* stream) {
+	if (stream) {
+		stream->free(stream);
+	}
+}
+
+int net_write(NetStream* stream, void* buffer, int bytes) {
 
 	const int total = bytes;
 
 	while (bytes != 0) {
-		const int result = base->write(stream, buffer, bytes);
+		const int result = stream->write(stream, buffer, bytes);
 
+		// TODO validate
 		if (result == -1 || result == 0) {
 			return result;
 		}
@@ -37,13 +50,14 @@ int net_write(NioFunctor* base, NioStream* stream, void* buffer, int bytes) {
 
 }
 
-int net_read(NioFunctor* base, NioStream* stream, void* buffer, int bytes) {
+int net_read(NetStream* stream, void* buffer, int bytes) {
 
 	const int total = bytes;
 
 	while (bytes != 0) {
-		const int result = base->read(stream, buffer, bytes);
+		const int result = stream->read(stream, buffer, bytes);
 
+		// TODO validate
 		if (result == -1 || result == 0) {
 			return result;
 		}

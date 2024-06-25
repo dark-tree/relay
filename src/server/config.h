@@ -31,9 +31,15 @@ typedef struct Config_tag {
 	IdSeqMode uids;
 	IdSeqMode gids;
 
+	// ssl config
+	bool ssl_enable;
+	char ssl_key[PATH_MAX];
+	char ssl_cert[PATH_MAX];
+
 	// server options
 	uint32_t urp_port;
 	uint32_t ws_port;
+	uint32_t wss_port;
 
 } Config;
 

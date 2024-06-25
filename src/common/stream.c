@@ -22,61 +22,51 @@
 #include <common/util.h>
 #include <common/const.h>
 
-void nio_create(NioStream* stream, int connfd, uint32_t length, NioFunctor functions) {
-	stream->connfd = connfd;
+void nio_create(NioStream* stream, uint32_t length, NetStream* impl) {
 	stream->buffer = calloc(length, 1);
 	stream->size = length;
-	stream->open = true;
-	stream->ws = NULL;
-	stream->ssl = NULL;
-	sem_init(&stream->write_mutex, 0, 1);
-
-	stream->read = functions.read;
-	stream->write = functions.write;
-	stream->flush = functions.flush;
-	stream->free = functions.free;
-
-	functions.init(stream);
+	stream->impl = impl;
 }
 
 void nio_drop(NioStream* stream) {
-	stream->open = false;
+	NIO_STATE(stream)->open = false;
 }
 
 void nio_free(NioStream* stream) {
-	stream->open = false;
 	free(stream->buffer);
-	close(stream->connfd);
-	sem_destroy(&stream->write_mutex);
-
-	if (stream->free) {
-		stream->free(stream);
-	}
+	net_free(stream->impl);
 }
 
 void nio_timeout(NioStream* stream, struct timeval* timev) {
-	setsockopt(stream->connfd, SOL_SOCKET, SO_RCVTIMEO, timev, sizeof(struct timeval));
+	setsockopt(NIO_STATE(stream)->connfd, SOL_SOCKET, SO_RCVTIMEO, timev, sizeof(struct timeval));
 }
 
 void nio_cork(NioStream* stream, int flag) {
-	setsockopt(stream->connfd, IPPROTO_TCP, TCP_CORK, &flag, sizeof(int));
+	setsockopt(NIO_STATE(stream)->connfd, IPPROTO_TCP, TCP_CORK, &flag, sizeof(int));
 }
 
 void nio_flush(NioStream* stream) {
-	stream->flush(stream);
+	NetFlush flush = stream->impl->flush;
+
+	if (flush) {
+		flush(stream->impl);
+	}
 }
 
 bool nio_open(NioStream* stream) {
-	return stream->open;
+	return NIO_STATE(stream)->open;
 }
 
 int nio_header(NioStream* stream, uint8_t* id) {
 
-	if (!stream->open) {
+	NetStream* impl = stream->impl;
+	NetStates* stat = impl->net;
+
+	if (!stat->open) {
 		return 3;
 	}
 
-	const int status = stream->read(stream, id, sizeof(uint8_t));
+	const int status = impl->read(impl, id, sizeof(uint8_t));
 
 	// packet header was read
 	if (status == sizeof(uint8_t)) {
@@ -86,7 +76,7 @@ int nio_header(NioStream* stream, uint8_t* id) {
 	// something other than the timeout occured, set error
 	if (status == 0 || errno != EWOULDBLOCK) {
 		log_debug("Call to read() was aborted! (status: %d)\n", status);
-		stream->open = false;
+		stat->open = false;
 		return 2;
 	}
 
@@ -120,9 +110,12 @@ void nio_skip(NioStream* stream, uint32_t bytes) {
 
 void nio_write(NioStream* stream, void* value, uint32_t size) {
 
-	while (stream->open) {
+	NetStream* impl = stream->impl;
+	NetStates* stat = impl->net;
 
-		int status = stream->write(stream, value, size);
+	while (stat->open) {
+
+		int status = impl->write(impl, value, size);
 
 		// success
 		if (status == size) {
@@ -140,16 +133,14 @@ void nio_write(NioStream* stream, void* value, uint32_t size) {
 		// error, consider the connection unusable
 		if (status == -1) {
 			log_debug("Call to write() failed! (errno: %s)\n", strerror(errno));
-
-			stream->open = false;
+			stat->open = false;
 			return;
 		}
 
 		// connection closed
 		if (status == 0) {
 			log_debug("Call to write() reported end-of-file!\n");
-
-			stream->open = false;
+			stat->open = false;
 			return;
 		}
 
@@ -178,9 +169,12 @@ void nio_writebuf(NioStream* stream, NioBlock* block) {
 
 void nio_read(NioStream* stream, void* value, uint32_t size) {
 
-	while (stream->open) {
+	NetStream* impl = stream->impl;
+	NetStates* stat = impl->net;
 
-		int status = stream->read(stream, value, size);
+	while (stat->open) {
+
+		int status = impl->read(impl, value, size);
 
 		// success
 		if (status == size) {
@@ -198,8 +192,7 @@ void nio_read(NioStream* stream, void* value, uint32_t size) {
 		// error, consider the connection unusable
 		if (status == -1) {
 			log_debug("Call to read() failed! (errno: %s)\n", strerror(errno));
-
-			stream->open = false;
+			stat->open = false;
 			memset(value, 0, size);
 			return;
 		}
@@ -207,8 +200,7 @@ void nio_read(NioStream* stream, void* value, uint32_t size) {
 		// conection closed
 		if (status == 0) {
 			log_debug("Call to read() reported end-of-file!\n");
-
-			stream->open = false;
+			stat->open = false;
 			memset(value, 0, size);
 			return;
 		}

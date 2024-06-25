@@ -16,9 +16,10 @@
  *  along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+
 #pragma once
 #include "external.h"
 
 /// Initializes a new SSL global context,
-/// no action is required to free it at exit
-int ssl_ctxinit(const char* certificate, const char* key);
+/// call SSL_CTX_free(ctx) to free the returned context
+SSL_CTX* ssl_ctxinit(const char* certificate, const char* key);

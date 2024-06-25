@@ -16,13 +16,14 @@
  *  along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+
 #include "http.h"
 
 #include <common/logger.h>
 #include <common/util.h>
 #include <common/const.h>
 
-int http_read(NioFunctor* base, NioStream* stream, HttpHeader* http, int line_buffer_size, bool read_status_line) {
+int http_read(NetStream* stream, HttpHeader* http, int line_buffer_size, bool read_status_line) {
 
 	int offset = 0;
 	char buffer[line_buffer_size];
@@ -41,7 +42,7 @@ int http_read(NioFunctor* base, NioStream* stream, HttpHeader* http, int line_bu
 
 		char value;
 
-		if (net_read(base, stream, &value, 1) <= 0) {
+		if (net_read(stream, &value, 1) <= 0) {
 			return -1;
 		}
 
@@ -71,7 +72,7 @@ int http_read(NioFunctor* base, NioStream* stream, HttpHeader* http, int line_bu
 
 		char value;
 
-		if (net_read(base, stream, &value, 1) <= 0) {
+		if (net_read(stream, &value, 1) <= 0) {
 			return -1;
 		}
 
@@ -135,36 +136,30 @@ int http_read(NioFunctor* base, NioStream* stream, HttpHeader* http, int line_bu
 
 }
 
-int http_write(NioFunctor* base, NioStream* stream, HttpHeader* http) {
+int http_write(NetStream* stream, HttpHeader* http) {
 
-	NIO_CORK(stream, {
+	if (http->header != NULL) {
+		net_write(stream, http->header, strlen(http->header));
+	}
 
-		if (http->header != NULL) {
-			net_write(base, stream, http->header, strlen(http->header));
-		}
+	net_write(stream, "\r\n", 2);
 
-		net_write(base, stream, "\r\n", 2);
+	for (int i = 0; i < http->count; i ++) {
 
-		for (int i = 0; i < http->count; i ++) {
+		HttpPair* pair = http->pairs + i;
 
-			HttpPair* pair = http->pairs + i;
+		net_write(stream, (void*) pair->key, strlen(pair->key));
+		net_write(stream, ": ", 2);
+		net_write(stream, (void*) pair->value, strlen(pair->value));
+		net_write(stream, "\r\n", 2);
 
-			net_write(base, stream, pair->key, strlen(pair->key));
-			net_write(base, stream, ": ", 2);
-			net_write(base, stream, pair->value, strlen(pair->value));
-			net_write(base, stream, "\r\n", 2);
+	}
 
-		}
-
-		net_write(base, stream, "\r\n", 2);
-
-	});
-
-	return 0;
+	return net_write(stream, "\r\n", 2);
 
 }
 
-int http_upgrade(NioFunctor* base, NioStream* stream) {
+int http_upgrade(NetStream* stream) {
 
 	const char* magic_websocket_constant = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
 
@@ -178,7 +173,7 @@ int http_upgrade(NioFunctor* base, NioStream* stream) {
 		http.count = 1;
 
 		// read http header and retrive the websocket nounce
-		if (http_read(base, stream, &http, 4096, false)) {
+		if (http_read(stream, &http, 4096, false)) {
 			return -1;
 		}
 	}
@@ -213,7 +208,7 @@ int http_upgrade(NioFunctor* base, NioStream* stream) {
 		http.pairs = pairs;
 		http.count = 3;
 
-		if (http_write(base, stream, &http)) {
+		if (http_write(stream, &http)) {
 			return -1;
 		}
 	}

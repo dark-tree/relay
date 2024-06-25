@@ -213,8 +213,11 @@ int main(int argc, char* argv[]) {
 
 	log_info("Successfully made a TCP connection to server.\n");
 
+	NetConsts consts = {0};
+	consts.connfd = sockfd;
+
 	NioStream stream;
-	nio_create(&stream, (int) sockfd, 1024, net_tcp);
+	nio_create(&stream, 1024, net_raw(&consts));
 
 	pthread_t thread;
 	pthread_create(&thread, NULL, server_listener, &stream);

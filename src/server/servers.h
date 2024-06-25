@@ -22,7 +22,7 @@
 #include <server/config.h>
 #include <server/tcps.h>
 
-#define MAX_SERVERS 2
+#define MAX_SERVERS 3
 
 typedef struct {
 
@@ -33,6 +33,7 @@ typedef struct {
 
 	void*(*user_thread)(void*);
 	TcpServer servers[MAX_SERVERS];
+	SSL_CTX* sctx;
 
 } ServerPool;
 
