@@ -21,18 +21,18 @@
 
 #include <common/const.h>
 
-///
-///
+/// Convert a setting key from
+/// integer enum to string.
 const char* str_sets_decode(uint32_t key);
 
-///
-///
+/// Convert a setting key from
+/// string to integer enum.
 int str_sets_encode(const char* key);
 
-///
-///
+/// Convert a make/join command
+/// response status code to human readable string.
 const char* str_makes_decode(uint8_t code);
 
-///
-///
+/// Convert a role enum from
+/// integer to string.
 const char* str_role_decode(uint8_t role);
