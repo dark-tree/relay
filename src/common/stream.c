@@ -159,6 +159,29 @@ void nio_write32(NioStream* stream, uint32_t value) {
 	nio_write(stream, &value, sizeof(uint32_t));
 }
 
+void nio_write15v(NioStream* stream, uint16_t value) {
+	if (value <= 0x7F) {
+		nio_write8(stream, value);
+		return;
+	}
+
+	uint8_t encoded[2];
+	encoded[0] = ((value & 0x7F00) >> 8) | 0x80;
+	encoded[1] = ((value & 0x00FF) >> 0);
+
+	nio_write(stream, encoded, 2);
+}
+
+void nio_write32v(NioStream* stream, uint32_t value) {
+	if (value <= 0x7FFE) {
+		nio_write15v(stream, value);
+		return;
+	}
+
+	nio_write16(stream, 0xFFFF);
+	nio_write32(stream, value);
+}
+
 void nio_writebuf(NioStream* stream, NioBlock* block) {
 	nio_write(stream, block->buffer, block->length);
 }
@@ -225,6 +248,26 @@ uint32_t nio_read32(NioStream* stream) {
 	uint32_t value;
 	nio_read(stream, &value, sizeof(uint32_t));
 	return value;
+}
+
+uint16_t nio_read15v(NioStream* stream) {
+	uint8_t head = nio_read8(stream);
+
+	if (head <= 0x7F) {
+		return head;
+	}
+
+	return ((head & 0x7F) << 8) | nio_read8(stream);
+}
+
+uint32_t nio_read32v(NioStream* stream) {
+	uint16_t head = nio_read15v(stream);
+
+	if (head <= 0x7FFE) {
+		return head;
+	}
+
+	return nio_read32(stream);
 }
 
 bool nio_readbuf(NioStream* stream, NioBlock* block) {

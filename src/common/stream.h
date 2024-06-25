@@ -85,6 +85,14 @@ void nio_write16(NioStream* stream, uint16_t value);
 /// This method does not ensure correct endianness of the data.
 void nio_write32(NioStream* stream, uint32_t value);
 
+/// Writes a variable-length 15 bit number into the output stream.
+/// This method does not ensure correct endianness of the data.
+void nio_write15v(NioStream* stream, uint16_t value);
+
+/// Writes a variable-length 32 bit number into the output stream.
+/// This method does not ensure correct endianness of the data.
+void nio_write32v(NioStream* stream, uint32_t value);
+
 /// Write the next block of data from the NioBlock, this should be used with nio_readbuf
 /// to transfer large buffers that cannot be copied into local memory in full at once.
 void nio_writebuf(NioStream* stream, NioBlock* block);
@@ -104,6 +112,14 @@ uint16_t nio_read16(NioStream* stream);
 /// Reads next uint32_t from the input stream and returns it.
 /// This method does not ensure correct endianness of the data.
 uint32_t nio_read32(NioStream* stream);
+
+/// Reads next variable-length 15 bit number from the input stream and returns it.
+/// This method does not ensure correct endianness of the data.
+uint16_t nio_read15v(NioStream* stream);
+
+/// Reads next variable-length 32 bit number from the input stream and returns it.
+/// This method does not ensure correct endianness of the data.
+uint32_t nio_read32v(NioStream* stream);
 
 /// Read the next block of data the NioBlock, this should be used with nio_writebuf
 /// to transfer large buffers that cannot be copied into local memory in full at once.
