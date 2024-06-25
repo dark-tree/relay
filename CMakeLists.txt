@@ -10,6 +10,7 @@ include_directories(src .)
 
 set(CLIENT_SOURCES
 	src/client/client.c
+	src/client/strings.c
 )
 
 set(SERVER_SOURCES
@@ -22,6 +23,8 @@ set(SERVER_SOURCES
 	src/server/store.c
 	src/server/config.c
 	src/server/servers.c
+	src/server/network/ws.c
+	src/server/network/ssl.c
 )
 
 set(COMMON_SOURCES
@@ -35,10 +38,6 @@ set(COMMON_SOURCES
 	src/common/http.c
 	src/common/network.c
 	src/common/network/raw.c
-	src/common/network/ws.c
-
-	src/common/network/ssl.c
-	src/common/network/ws.c
 )
 
 add_library(common STATIC ${COMMON_SOURCES})

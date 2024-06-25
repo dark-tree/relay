@@ -35,14 +35,12 @@
 
 IdStore* users;
 IdStore* groups;
+uint8_t* brand;
 
 void* user_thread(void* context) {
 
 	User * const user = (User*) context;
 	NioStream* stream = &user->stream;
-
-	// FIXME
-	uint8_t brand[64] = "My Little Relay";
 
 	log_info("User #%d connected over %s\n", user->uid, stream->impl->id);
 
@@ -502,11 +500,11 @@ void* user_thread(void* context) {
 int main() {
 
 	OpenSSL_add_all_algorithms();
-
 	Config cfg;
 
 	config_default(&cfg);
 	config_load(&cfg, "server.cfg");
+	brand = cfg.brand;
 
 	// set logger level
 	log_setlv(cfg.level);

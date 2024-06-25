@@ -18,6 +18,7 @@
 
 #include "external.h"
 
+#include <client/strings.h>
 #include <common/const.h>
 #include <common/stream.h>
 #include <common/input.h>
@@ -25,57 +26,9 @@
 #include <common/util.h>
 #include <common/network.h>
 
-// TODO move somewhere else
-const char* decode_setting(uint32_t key) {
-
-	if (key == SETK_INVALID) return "invalid";
-	if (key == SETK_GROUP_PASS) return "group.password";
-	if (key == SETK_GROUP_FLAGS) return "group.flags";
-	if (key == SETK_GROUP_MEMBERS) return "group.members";
-	if (key == SETK_GROUP_PAYLOAD) return "group.payload";
-
-	return "unknown";
-
-}
-
-// TODO move somewhere else
-int encode_setting(const char* key) {
-
-	if (streq(key, "invalid")) return SETK_INVALID;
-	if (streq(key, "group.password")) return SETK_GROUP_PASS;
-	if (streq(key, "group.flags")) return SETK_GROUP_FLAGS;
-	if (streq(key, "group.members")) return SETK_GROUP_MEMBERS;
-	if (streq(key, "group.payload")) return SETK_GROUP_PAYLOAD;
-
-	return SETK_INVALID;
-
-}
-
-// TODO move somewhere else
-const char* made_codestr(uint8_t code) {
-	if (code == 0x00) return "Created group #%d\n";
-	if (code == 0x10) return "Joined group #%d\n";
-
-	if (code & 0xF0) {
-		return "Failed to join the given group!\n";
-	} else {
-		return "Failed to create group!\n";
-	}
-}
-
-// TODO move somewhere else
-const char* role_tostr(uint8_t role) {
-	if (role == 1) return "connected";
-	if (role == 2) return "member";
-	if (role == 4) return "host";
-
-	return "<invalid value>";
-}
-
-void milis(uint32_t msec, struct timeval *tv) {
-	tv->tv_sec = msec / 1000;
-	tv->tv_usec = (msec % 1000) * 1000;
-}
+sem_t fsem;
+FILE* fptr = NULL;
+int fuid = 0;
 
 void* server_listener(void* user) {
 	NioStream* stream = (NioStream*) user;
@@ -132,6 +85,19 @@ void* server_listener(void* user) {
 			nio_read(stream, buffer, len);
 			buffer[len] = 0;
 
+			if (fptr && uid == fuid) {
+
+				sem_wait(&fsem);
+				fwrite(buffer, 1, len, fptr);
+				fclose(fptr);
+				fptr = 0;
+				fuid = 0;
+				sem_post(&fsem);
+
+				log_info("User #%d message saved to file\n", uid);
+				continue;
+			}
+
 			util_sanitize(buffer, len);
 
 			log_info("User #%d said: '%s'\n", uid, buffer);
@@ -142,13 +108,13 @@ void* server_listener(void* user) {
 			uint16_t sta = nio_read8(stream);
 			uint32_t gid = nio_read32(stream);
 
-			log_info(made_codestr(sta), gid);
+			log_info(str_makes_decode(sta), gid);
 			continue;
 		}
 
 		if (id == R2U_STAT) {
 			uint16_t sta = nio_read8(stream);
-			log_info("Your status changed to: %s\n", role_tostr(sta));
+			log_info("Your status changed to: %s\n", str_role_decode(sta));
 			continue;
 		}
 
@@ -168,7 +134,7 @@ void* server_listener(void* user) {
 			uint32_t key = nio_read32(stream);
 			uint32_t val = nio_read32(stream);
 
-			log_info("Setting '%s' is set to '%d'\n", decode_setting(key), val);
+			log_info("Setting '%s' is set to '%d'\n", str_sets_decode(key), val);
 		}
 
 	}
@@ -219,6 +185,7 @@ int main(int argc, char* argv[]) {
 	NioStream stream;
 	nio_create(&stream, 1024, net_raw(&consts));
 
+	sem_init(&fsem, 0, 1);
 	pthread_t thread;
 	pthread_create(&thread, NULL, server_listener, &stream);
 
@@ -235,18 +202,19 @@ int main(int argc, char* argv[]) {
 
 			if (streq(buffer, "help")) {
 				printf("List of commands:\n");
-				printf(" * help               Print this help page\n");
-				printf(" * push <byte>        Write one byte into the server connection\n");
-				printf(" * make               Create new group\n");
-				printf(" * join <gid> <pass>  Join new group\n");
-				printf(" * quit               Quit the group\n");
-				printf(" * kick <uid>         Kick user from group\n");
-				printf(" * send <uid> <msg>   Send message to user\n");
-				printf(" * brod <uid> <msg>   Send message to all, except user\n");
-				printf(" * rand <cnt>         Write cnt random bytes into the server connection\n");
-				printf(" * stop               Stop the client\n");
-				printf(" * gets <key>         Get the value of a setting\n");
-				printf(" * sets <key> <val>   Set the value of a setting\n");
+				printf(" * help                   Print this help page\n");
+				printf(" * push <byte>            Write one byte into the server connection\n");
+				printf(" * make                   Create new group\n");
+				printf(" * join <gid> <password>  Join new group\n");
+				printf(" * quit                   Quit the group\n");
+				printf(" * kick <uid>             Kick user from group\n");
+				printf(" * send <uid> <message>   Send message to user\n");
+				printf(" * brod <uid> <message>   Send message to all, except user\n");
+				printf(" * rand <count>           Write 'count' random bytes into the server connection\n");
+				printf(" * stop                   Stop the client\n");
+				printf(" * gets <key>             Get the value of a setting\n");
+				printf(" * sets <key> <value>     Set the value of a setting\n");
+				printf(" * file r/w <uid> <path>  Send file as message or collect next message to file\n");
 			}
 
 			if (streq(buffer, "push")) {
@@ -354,22 +322,20 @@ int main(int argc, char* argv[]) {
 			}
 
 			if (streq(buffer, "gets")) {
-
 				if (input_string(&line, buffer, 255)) {
 
-					uint32_t key = encode_setting(buffer);
+					uint32_t key = str_sets_encode(buffer);
 
 					nio_write8(&stream, U2R_GETS);
 					nio_write32(&stream, key);
 
 				}
-
 			}
 
 			if (streq(buffer, "sets")) {
 				if (input_string(&line, buffer, 255)) {
 
-					uint32_t key = encode_setting(buffer);
+					uint32_t key = str_sets_encode(buffer);
 
 					long val;
 					if (input_number(&line, &val)) {
@@ -383,9 +349,78 @@ int main(int argc, char* argv[]) {
 				}
 			}
 
+			if (streq(buffer, "file")) {
+				if (input_token(&line, buffer, 255)) {
+
+					int mode = 0;
+
+					if (streq(buffer, "r")) {
+						mode = 1;
+					}
+
+					if (streq(buffer, "w")) {
+						mode = 2;
+					}
+
+					if (mode) {
+
+						long uid;
+						if (input_number(&line, &uid)) {
+							if (input_string(&line, buffer, 255)) {
+
+								if (mode == 1) { // read - send the given file as message
+									sem_wait(&fsem);
+									FILE* f = fopen(buffer, "r");
+
+									if (f) {
+
+										fseek(f, 0, SEEK_END);
+										long length = ftell(f);
+										fseek(f, 0, SEEK_SET);
+
+										uint8_t buffer[length];
+										fread(buffer, 1, length, f);
+
+										nio_write8(&stream, U2R_SEND);
+										nio_write32(&stream, uid);
+										nio_write32(&stream, length);
+										nio_write(&stream, buffer, length);
+
+									} else {
+										log_warn("Filed to open file\n");
+									}
+									sem_post(&fsem);
+								}
+
+								if (mode == 2) { // write - save next message from UID to file
+									sem_wait(&fsem);
+
+									if (fptr) {
+										log_warn("Another file was already scheduled and was replaced\n");
+										fclose(fptr);
+									}
+
+									fptr = fopen(buffer, "w");
+
+									if (!fptr) {
+										log_warn("Filed to open file\n");
+									}
+
+									fuid = uid;
+									sem_post(&fsem);
+								}
+
+							}
+						}
+
+					}
+				}
+			}
+
 		}
 	}
 
 	input_free(&line);
+	sem_destroy(&fsem);
 
 }

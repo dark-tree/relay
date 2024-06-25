@@ -20,8 +20,8 @@
 
 #include <common/stream.h>
 #include <common/network.h>
-#include <common/network/ssl.h>
 #include <common/logger.h>
+#include <server/network/ssl.h>
 #include <server/mutex.h>
 #include <server/store.h>
 #include <server/user.h>

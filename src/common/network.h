@@ -59,12 +59,12 @@ NetStream* net_ws(NetConsts* consts);
 NetStream* net_ssl(NetConsts* consts);
 NetStream* net_wss(NetConsts* consts);
 
-/// TODO
-///
+/// Wraps the given base stream in the wrapper
+/// so that using read/write in the wrapper stream will invoke read/write in base
 void net_wrap(NetStream* base, NetStream* wrapper);
 
-/// TODO
-///
+/// Dealocates the linked streams, should be called on the top level wrapper
+/// it will then recursively free all the linked bases
 void net_free(NetStream* stream);
 
 /// Changes the returns value domain from [-1, N] to {-1, 0, N} - ensuring

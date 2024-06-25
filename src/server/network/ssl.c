@@ -17,7 +17,7 @@
  */
 
 
-#include "../network.h"
+#include <common/network.h>
 #include "ssl.h"
 
 #include <common/logger.h>

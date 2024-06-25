@@ -16,7 +16,7 @@
  *  along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "../network.h"
+#include <common/network.h>
 
 #include <common/util.h>
 #include <common/http.h>

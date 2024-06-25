@@ -29,12 +29,12 @@ typedef struct {
 /// before calling any other input function. Use input_free() to dealocate a line struct after use.
 void input_create(InputLine* line);
 
-///
-/// Free the line struct after use.
+/// Should NOT be called if input_readline is intended
+/// to be called later. Free the line struct after use.
 void input_free(InputLine* line);
 
 /// Reads one line from standard input into the line struct
-/// The line struct given needs not be cleard before use
+/// The line struct given needs not be freed before use
 void input_readline(InputLine* line);
 
 /// Reads next token from the line into the given buffer,
