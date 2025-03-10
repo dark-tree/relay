@@ -1,2 +1,7 @@
 build
-
+keychain/certificate.conf
+keychain/server.csr
+keychain/server-key.pem
+keychain/server-crt.pem
+keychain/root-key.pem
+keychain/root-crt.pem

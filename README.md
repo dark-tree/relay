@@ -1,8 +1,24 @@
 ## URP Server
-This is an reference implementation of the User Relay Protocol (learn more [here](DOCS.md)), written in C++ using the [ASIO](https://think-async.com/Asio/) library
+This is an reference implementation of the User Relay Protocol, written in C
 
 #### Build
-To build the server on Linux run the `build.sh` script. The server executable (`server`) will be generated in the `build` directory. The `client` executable allows for connecting to any URP server, and can be used for debug purposes.
+To build the project run:
+```sh
+mkdir build
+cmake . -B build
+cmake --build build/
+
+# start the relay
+./build/server
+
+# start the debug client
+./build/client localhost
+
+# for testing of the wss server you can generate the required
+# certificate and key with the provided scripts
+cd keychain && ./keygen.sh
+```
 
 #### License
-This project is licensed under the MIT license, see [here](LICENSE).
+The code of this reference server implementation is licensed under the GPLv3 license, see [here](LICENSE).
+While the included client libraries (file under `/lib`) are licensed under LGPL. See relevant file headers.

@@ -1,13 +1,49 @@
-include_directories(lib/asio-1.22.1/include src/ src/common)
+cmake_minimum_required(VERSION 3.9)
+project(URP LANGUAGES C)
 
-set(CMAKE_CXX_STANDARD 20)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++20 -pthread")
+find_package(OpenSSL REQUIRED)
 
-set(SERVER_SOURCE src/server/server.cpp src/server/packets.cpp src/server/users.cpp)
-set(CLIENT_SOURCE src/client/client.cpp src/client/packets.cpp )
-set(COMMON_SOURCE src/common/writer.cpp src/common/parser.cpp src/common/logger.cpp)
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g")
+set(CMAKE_C_STANDARD 11)
 
-add_executable(server ${SERVER_SOURCE} ${COMMON_SOURCE})
-add_executable(client ${CLIENT_SOURCE} ${COMMON_SOURCE})
+include_directories(src .)
 
+set(CLIENT_SOURCES
+	src/client/client.c
+	src/client/strings.c
+)
+
+set(SERVER_SOURCES
+	src/server/group.c
+	src/server/mutex.c
+	src/server/sequence.c
+	src/server/server.c
+	src/server/user.c
+	src/server/tcps.c
+	src/server/store.c
+	src/server/config.c
+	src/server/servers.c
+	src/server/network/ws.c
+	src/server/network/ssl.c
+)
+
+set(COMMON_SOURCES
+	src/common/logger.c
+	src/common/map.c
+	src/common/set.c
+	src/common/vec.c
+	src/common/stream.c
+	src/common/input.c
+	src/common/util.c
+	src/common/http.c
+	src/common/network.c
+	src/common/network/raw.c
+)
+
+add_library(common STATIC ${COMMON_SOURCES})
+
+add_executable(server ${SERVER_SOURCES})
+target_link_libraries(server PRIVATE common OpenSSL::Crypto OpenSSL::SSL)
+
+add_executable(client ${CLIENT_SOURCES})
+target_link_libraries(client PRIVATE common OpenSSL::Crypto OpenSSL::SSL)
